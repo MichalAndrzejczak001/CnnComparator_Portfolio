@@ -1,0 +1,9 @@
+fastapi==0.128.0
+uvicorn==0.30.6
+pydantic==2.12.5
+torch==2.9.1+cpu
+torchvision==0.24.1+cpu
+python-multipart==0.0.20
+matplotlib
+numpy
+pillow==12.0.0
