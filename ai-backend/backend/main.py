@@ -1,5 +1,6 @@
 import base64
 import io
+import logging
 import os
 import uuid
 
@@ -20,6 +21,8 @@ from backend.schemas import (
     ClassConfidence, CompareConfig, ExperimentConfig, GradCamResponse, PredictResponse,
 )
 from backend.training.trainer import evaluate, train
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -193,7 +196,7 @@ def _generate_sample_gradcams(model, model_name, test_loader, class_labels, devi
                 })
                 seen[cls] = True
             except Exception:
-                pass
+                logger.exception("Failed to generate sample Grad-CAM for class %s", cls)
 
         if len(seen) == len(class_labels):
             break
