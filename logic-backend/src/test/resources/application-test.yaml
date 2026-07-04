@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: logic-backend-test
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+ai-backend:
+  url: http://localhost:9999
+
+jwt:
+  secret: integration-test-secret-key-long-enough-for-hmac-sha256-signing
