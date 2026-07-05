@@ -5,9 +5,12 @@ import com.cnncomparator.dto.CompareResponse;
 import com.cnncomparator.dto.ExperimentRequest;
 import com.cnncomparator.dto.ExperimentResponse;
 import com.cnncomparator.dto.ExperimentSummaryResponse;
+import com.cnncomparator.dto.GradCamResponse;
+import com.cnncomparator.dto.PredictResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,8 +19,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -53,5 +59,19 @@ public class ExperimentController {
     @PostMapping("/compare")
     public ResponseEntity<CompareResponse> compareModels(@Valid @RequestBody CompareRequest request) {
         return ResponseEntity.ok(experimentService.compareModels(request));
+    }
+
+    @PostMapping(value = "/{id}/predict", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PredictResponse> predict(@PathVariable Long id,
+                                                    @RequestParam("file") MultipartFile file,
+                                                    Authentication authentication) throws IOException {
+        return ResponseEntity.ok(experimentService.predict(id, authentication.getName(), file));
+    }
+
+    @PostMapping(value = "/{id}/gradcam", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GradCamResponse> gradcam(@PathVariable Long id,
+                                                    @RequestParam("file") MultipartFile file,
+                                                    Authentication authentication) throws IOException {
+        return ResponseEntity.ok(experimentService.generateGradCam(id, authentication.getName(), file));
     }
 }

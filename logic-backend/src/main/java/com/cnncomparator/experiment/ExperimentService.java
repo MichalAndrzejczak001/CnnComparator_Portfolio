@@ -5,15 +5,25 @@ import com.cnncomparator.dto.CompareResponse;
 import com.cnncomparator.dto.ExperimentRequest;
 import com.cnncomparator.dto.ExperimentResponse;
 import com.cnncomparator.dto.ExperimentSummaryResponse;
+import com.cnncomparator.dto.GradCamResponse;
+import com.cnncomparator.dto.PredictResponse;
 import com.cnncomparator.user.User;
 import com.cnncomparator.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -81,6 +91,45 @@ public class ExperimentService {
 
     public CompareResponse compareModels(CompareRequest request) {
         return restTemplate.postForObject(aiBackendUrl + "/compare", request, CompareResponse.class);
+    }
+
+    public PredictResponse predict(Long id, String username, MultipartFile file) throws IOException {
+        Experiment experiment = findExperiment(id);
+        assertOwner(experiment, username);
+
+        return restTemplate.postForObject(
+                aiBackendUrl + "/predict", buildInferenceRequest(experiment, file), PredictResponse.class
+        );
+    }
+
+    public GradCamResponse generateGradCam(Long id, String username, MultipartFile file) throws IOException {
+        Experiment experiment = findExperiment(id);
+        assertOwner(experiment, username);
+
+        return restTemplate.postForObject(
+                aiBackendUrl + "/gradcam", buildInferenceRequest(experiment, file), GradCamResponse.class
+        );
+    }
+
+    private HttpEntity<MultiValueMap<String, Object>> buildInferenceRequest(Experiment experiment, MultipartFile file)
+            throws IOException {
+        ByteArrayResource fileResource = new ByteArrayResource(file.getBytes()) {
+            @Override
+            public String getFilename() {
+                return file.getOriginalFilename();
+            }
+        };
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("model_name", experiment.getModel());
+        body.add("dataset", experiment.getDataset());
+        body.add("model_id", experiment.getModelId());
+        body.add("file", fileResource);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        return new HttpEntity<>(body, headers);
     }
 
     private User findUser(String username) {
