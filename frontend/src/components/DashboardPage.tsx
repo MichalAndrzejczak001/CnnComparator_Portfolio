@@ -70,7 +70,7 @@ export function DashboardPage() {
         <ul className="experiment-list">
           {experiments.map((experiment) => (
             <li key={experiment.id} className="card experiment-card">
-              <Link to={`/experiments/${experiment.id}`} className="experiment-card-link">
+              <Link to={`/dashboard/experiments/${experiment.id}`} className="experiment-card-link">
                 <span className="experiment-model">{MODEL_LABELS[experiment.model] ?? experiment.model}</span>
                 <span className="experiment-dataset">{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</span>
                 <span className="experiment-accuracy">{(experiment.test_accuracy * 100).toFixed(2)}%</span>
