@@ -15,6 +15,10 @@ export function Layout() {
         <Link to="/dashboard" className="app-logo">
           CnnComparator
         </Link>
+        <nav className="app-nav">
+          <Link to="/dashboard">Dashboard</Link>
+          <Link to="/dashboard/compare">Compare</Link>
+        </nav>
         <button type="button" className="btn-outline" onClick={handleLogout}>
           Log out
         </button>

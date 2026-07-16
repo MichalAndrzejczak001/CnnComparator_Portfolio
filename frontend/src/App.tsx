@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { getToken } from './api/client'
+import { ComparePage } from './components/ComparePage'
 import { DashboardPage } from './components/DashboardPage'
 import { ExperimentDetailPage } from './components/ExperimentDetailPage'
 import { LandingPage } from './components/LandingPage'
@@ -27,6 +28,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dashboard/experiments/:id" element={<ExperimentDetailPage />} />
+            <Route path="/dashboard/compare" element={<ComparePage />} />
           </Route>
         </Route>
 
