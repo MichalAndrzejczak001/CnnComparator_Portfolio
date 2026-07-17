@@ -309,3 +309,133 @@ input[type='file'] {
     transform: scale(0.96);
   }
 }
+
+/* App shell */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-logo {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.app-nav {
+  display: flex;
+  gap: var(--space-4);
+  flex: 1;
+}
+
+.app-nav a {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.app-nav a:hover {
+  color: var(--text-h);
+}
+
+.app-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--space-6);
+  text-align: left;
+}
+
+/* Landing page */
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.landing-logo {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.landing-nav-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.landing-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-7);
+  padding: var(--space-7) var(--space-6);
+  max-width: 1080px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.landing-hero-text {
+  flex: 1;
+  text-align: left;
+}
+
+.landing-hero-text p {
+  margin: var(--space-4) 0 var(--space-5);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.landing-hero-visual {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  max-width: 1080px;
+  margin: 0 auto var(--space-7);
+  padding: 0 var(--space-6);
+  width: 100%;
+}
+
+.landing-feature h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-h);
+}
+
+.landing-feature p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.neural-net-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.neural-net-nodes circle {
+  filter: drop-shadow(0 0 6px rgba(124, 140, 255, 0.5));
+}
