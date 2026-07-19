@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cy:open": "cypress open",
+    "test:e2e": "cypress run"
   },
   "dependencies": {
     "react": "^19.2.7",
@@ -20,6 +22,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "cypress": "^15.18.1",
     "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
