@@ -1,10 +1,19 @@
+import io
+
 import pytest
+import torch
 from fastapi.testclient import TestClient
 
 from backend.main import app
-from backend.models.factory import MODEL_NAMES
+from backend.models.factory import MODEL_NAMES, create_model
 
 client = TestClient(app)
+
+
+def _save_dummy_weights(tmp_path, monkeypatch, model_id, model_name="simple_cnn", num_classes=10, in_channels=1):
+    monkeypatch.setattr("backend.main.SAVED_MODELS_DIR", str(tmp_path))
+    model = create_model(model_name, num_classes, in_channels, (32, 32))
+    torch.save(model.state_dict(), tmp_path / f"{model_id}.pth")
 
 
 def test_health():
@@ -108,3 +117,40 @@ def test_predict_invalid_model_id_returns_400():
         "model_id": "not-a-valid-uuid",
     }, files={"file": ("test.png", fake_image, "image/png")})
     assert response.status_code == 400
+
+
+def test_predict_missing_file_returns_422():
+    response = client.post("/predict", data={
+        "model_name": "simple_cnn",
+        "dataset": "mnist",
+        "model_id": "550e8400-e29b-41d4-a716-446655440000",
+    })
+    assert response.status_code == 422
+
+
+def test_predict_corrupt_image_returns_400(tmp_path, monkeypatch):
+    model_id = "550e8400-e29b-41d4-a716-446655440001"
+    _save_dummy_weights(tmp_path, monkeypatch, model_id)
+
+    response = client.post("/predict", data={
+        "model_name": "simple_cnn",
+        "dataset": "mnist",
+        "model_id": model_id,
+    }, files={"file": ("not_an_image.txt", io.BytesIO(b"this is definitely not image data"), "text/plain")})
+
+    assert response.status_code == 400
+    assert "Invalid or unsupported image file" in response.json()["detail"]
+
+
+def test_gradcam_corrupt_image_returns_400(tmp_path, monkeypatch):
+    model_id = "550e8400-e29b-41d4-a716-446655440002"
+    _save_dummy_weights(tmp_path, monkeypatch, model_id)
+
+    response = client.post("/gradcam", data={
+        "model_name": "simple_cnn",
+        "dataset": "mnist",
+        "model_id": model_id,
+    }, files={"file": ("not_an_image.txt", io.BytesIO(b"this is definitely not image data"), "text/plain")})
+
+    assert response.status_code == 400
+    assert "Invalid or unsupported image file" in response.json()["detail"]

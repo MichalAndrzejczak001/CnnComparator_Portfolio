@@ -82,4 +82,49 @@ class AuthControllerIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void registerRejectsPasswordShorterThanEightCharacters() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"short_password_user","password":"short"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void registerRejectsUsernameOverMaxLength() throws Exception {
+        String tooLongUsername = "a".repeat(101);
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + tooLongUsername + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void registerRejectsMalformedJsonBody() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\": \"broken\", \"password\": "))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void registerAndLoginHandleSqlInjectionStyleUsernameSafely() throws Exception {
+        String injectionAttempt = "'; DROP TABLE users; --";
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + injectionAttempt + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.token").isNotEmpty());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + injectionAttempt + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty());
+    }
 }

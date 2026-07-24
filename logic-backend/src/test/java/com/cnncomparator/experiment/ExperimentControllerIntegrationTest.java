@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -80,6 +82,20 @@ class ExperimentControllerIntegrationTest {
                 .andReturn();
 
         return JsonPath.read(result.getResponse().getContentAsString(), "$.token");
+    }
+
+    private long createExperimentAndGetId(String token) throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/experiments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"model":"simple_cnn","dataset":"mnist","training":{"epochs":1,"batch_size":16,"learning_rate":0.01}}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        Number id = JsonPath.read(createResult.getResponse().getContentAsString(), "$.id");
+        return id.longValue();
     }
 
     @Test
@@ -158,5 +174,52 @@ class ExperimentControllerIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dataset").value("mnist"));
+    }
+
+    @Test
+    void predictRejectsNonExistentExperiment() throws Exception {
+        String token = registerAndGetToken("predict_missing_experiment_user");
+        MockMultipartFile file = new MockMultipartFile("file", "digit.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});
+
+        mockMvc.perform(multipart("/experiments/{id}/predict", 999_999L)
+                        .file(file)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void predictRejectsExperimentNotOwnedByCaller() throws Exception {
+        String ownerToken = registerAndGetToken("predict_owner_user");
+        String otherToken = registerAndGetToken("predict_other_user");
+        long id = createExperimentAndGetId(ownerToken);
+        MockMultipartFile file = new MockMultipartFile("file", "digit.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});
+
+        mockMvc.perform(multipart("/experiments/{id}/predict", id)
+                        .file(file)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void predictRejectsRequestMissingFilePart() throws Exception {
+        String token = registerAndGetToken("predict_missing_file_user");
+        long id = createExperimentAndGetId(token);
+
+        mockMvc.perform(multipart("/experiments/{id}/predict", id)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void gradcamRejectsExperimentNotOwnedByCaller() throws Exception {
+        String ownerToken = registerAndGetToken("gradcam_owner_user");
+        String otherToken = registerAndGetToken("gradcam_other_user");
+        long id = createExperimentAndGetId(ownerToken);
+        MockMultipartFile file = new MockMultipartFile("file", "digit.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});
+
+        mockMvc.perform(multipart("/experiments/{id}/gradcam", id)
+                        .file(file)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
     }
 }
