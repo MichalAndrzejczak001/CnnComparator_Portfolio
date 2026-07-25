@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "model": { "type": "string" },
+    "dataset": { "type": "string" },
+    "epochs": { "type": "integer" },
+    "batch_size": { "type": "integer" },
+    "learning_rate": { "type": "number" },
+    "train_loss_per_epoch": { "type": "array", "items": { "type": "number" } },
+    "test_loss_per_epoch": { "type": "array", "items": { "type": "number" } },
+    "test_loss": { "type": "number" },
+    "test_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+    "training_time_seconds": { "type": "number" },
+    "confusion_matrix": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "integer" } }
+    },
+    "note": { "type": ["string", "null"] },
+    "model_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "sample_gradcams": { "type": "array" }
+  },
+  "required": [
+    "id", "model", "dataset", "epochs", "batch_size", "learning_rate",
+    "train_loss_per_epoch", "test_loss_per_epoch", "test_loss", "test_accuracy",
+    "training_time_seconds", "confusion_matrix", "note", "model_id", "created_at", "sample_gradcams"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": { "type": "integer" },
+      "model": { "type": "string" },
+      "dataset": { "type": "string" },
+      "test_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+      "created_at": { "type": "string" },
+      "note": { "type": ["string", "null"] }
+    },
+    "required": ["id", "model", "dataset", "test_accuracy", "created_at", "note"],
+    "additionalProperties": false
+  }
+}

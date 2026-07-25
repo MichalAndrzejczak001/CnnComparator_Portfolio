@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "dataset": { "type": "string" },
+    "epochs": { "type": "integer" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "model": { "type": "string" },
+          "train_loss_per_epoch": { "type": "array" },
+          "test_loss_per_epoch": { "type": "array" },
+          "test_loss": { "type": "number" },
+          "test_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+          "training_time_seconds": { "type": "number" },
+          "confusion_matrix": { "type": "array" }
+        },
+        "required": [
+          "model", "train_loss_per_epoch", "test_loss_per_epoch", "test_loss",
+          "test_accuracy", "training_time_seconds", "confusion_matrix"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["dataset", "epochs", "results"],
+  "additionalProperties": false
+}

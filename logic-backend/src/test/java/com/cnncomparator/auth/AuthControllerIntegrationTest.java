@@ -8,7 +8,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,7 +30,8 @@ class AuthControllerIntegrationTest {
                                 {"username":"integration_user","password":"password123"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/auth-response.schema.json")));
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -36,7 +39,8 @@ class AuthControllerIntegrationTest {
                                 {"username":"integration_user","password":"password123"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/auth-response.schema.json")));
     }
 
     @Test

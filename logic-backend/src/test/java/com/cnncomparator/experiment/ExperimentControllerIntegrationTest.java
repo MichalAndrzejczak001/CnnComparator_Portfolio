@@ -20,11 +20,13 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,7 +55,11 @@ class ExperimentControllerIntegrationTest {
             }
         });
         aiBackendStub.createContext("/compare", exchange -> {
-            String body = "{\"dataset\":\"mnist\",\"epochs\":2,\"results\":[]}";
+            String body = "{\"dataset\":\"mnist\",\"epochs\":2,\"results\":["
+                    + "{\"model\":\"simple_cnn\",\"train_loss_per_epoch\":[0.9,0.5],\"test_loss_per_epoch\":[0.8,0.4],"
+                    + "\"test_loss\":0.4,\"test_accuracy\":0.91,\"training_time_seconds\":12.3,"
+                    + "\"confusion_matrix\":[[5,0],[1,4]]}"
+                    + "]}";
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, bytes.length);
@@ -111,6 +117,7 @@ class ExperimentControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.model_id").value("abc-123"))
                 .andExpect(jsonPath("$.test_accuracy").value(0.91))
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/experiment-response.schema.json")))
                 .andReturn();
 
         Number id = JsonPath.read(createResult.getResponse().getContentAsString(), "$.id");
@@ -118,7 +125,8 @@ class ExperimentControllerIntegrationTest {
         mockMvc.perform(get("/experiments")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/experiment-summary-list.schema.json")));
 
         mockMvc.perform(get("/experiments/" + id)
                         .header("Authorization", "Bearer " + token))
@@ -173,7 +181,8 @@ class ExperimentControllerIntegrationTest {
                                 {"dataset":"mnist","training":{"epochs":2,"batch_size":32,"learning_rate":0.001}}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.dataset").value("mnist"));
+                .andExpect(jsonPath("$.dataset").value("mnist"))
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/compare-response.schema.json")));
     }
 
     @Test
