@@ -39,7 +39,7 @@ def test_evaluate_returns_required_keys():
     model = SimpleCNN(1, 10)
     loader = make_loader()
 
-    result = evaluate(model, loader)
+    result = evaluate(model, loader, num_classes=10)
 
     assert "loss" in result
     assert "accuracy" in result
@@ -50,7 +50,7 @@ def test_evaluate_accuracy_in_range():
     model = SimpleCNN(1, 10)
     loader = make_loader()
 
-    result = evaluate(model, loader)
+    result = evaluate(model, loader, num_classes=10)
 
     assert 0.0 <= result["accuracy"] <= 1.0
 
@@ -60,7 +60,21 @@ def test_evaluate_confusion_matrix_shape():
     model = SimpleCNN(1, num_classes)
     loader = make_loader(num_classes=num_classes)
 
-    result = evaluate(model, loader)
+    result = evaluate(model, loader, num_classes=num_classes)
+    matrix = result["confusion_matrix"]
+
+    assert len(matrix) == num_classes
+    assert all(len(row) == num_classes for row in matrix)
+
+
+def test_evaluate_confusion_matrix_shape_is_stable_when_a_class_is_never_sampled():
+    num_classes = 10
+    model = SimpleCNN(1, num_classes)
+    x = torch.randn(4, 1, 32, 32)
+    y = torch.tensor([0, 1, 2, 3])
+    loader = DataLoader(TensorDataset(x, y), batch_size=4)
+
+    result = evaluate(model, loader, num_classes=num_classes)
     matrix = result["confusion_matrix"]
 
     assert len(matrix) == num_classes

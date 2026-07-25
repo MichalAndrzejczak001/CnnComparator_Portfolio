@@ -84,8 +84,11 @@ class TestResNet18:
         assert out.shape == (2, 10)
 
     def test_custom_num_classes(self):
+        # ResNet18 uses BatchNorm, which requires more than one sample per
+        # channel while the model is in training mode (the default nn.Module
+        # state) — batch size 2 avoids that constraint.
         model = ResNet18(in_channels=3, num_classes=6)
-        assert model(torch.zeros(1, 3, 32, 32)).shape == (1, 6)
+        assert model(torch.zeros(2, 3, 32, 32)).shape == (2, 6)
 
 
 class TestMobileNetV1:

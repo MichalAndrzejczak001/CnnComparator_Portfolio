@@ -223,7 +223,7 @@ def run_experiment(config: ExperimentConfig):
     train_loss, test_loss_per_epoch, training_time = train(
         model, train_loader, test_loader, config.training.epochs, optimizer, device=device
     )
-    metrics = evaluate(model, test_loader, device=device)
+    metrics = evaluate(model, test_loader, num_classes, device=device)
 
     model_id = str(uuid.uuid4())
     torch.save(model.state_dict(), os.path.join(SAVED_MODELS_DIR, f"{model_id}.pth"))
@@ -260,7 +260,7 @@ def compare_models(config: CompareConfig):
         train_loss, test_loss_per_epoch, training_time = train(
             model, train_loader, test_loader, config.training.epochs, optimizer, device=device
         )
-        metrics = evaluate(model, test_loader, device=device)
+        metrics = evaluate(model, test_loader, num_classes, device=device)
 
         results.append({
             "model": model_name,

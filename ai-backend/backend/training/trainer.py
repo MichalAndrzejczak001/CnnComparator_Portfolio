@@ -39,7 +39,7 @@ def train(model, train_loader, test_loader, epochs, optimizer, device="cpu"):
     return train_losses, test_losses, training_time
 
 
-def evaluate(model, test_loader, device="cpu"):
+def evaluate(model, test_loader, num_classes, device="cpu"):
     model.to(device)
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -58,7 +58,6 @@ def evaluate(model, test_loader, device="cpu"):
             all_labels.extend(labels.cpu().tolist())
             all_preds.extend(preds.cpu().tolist())
 
-    num_classes = max(max(all_labels), max(all_preds)) + 1
     confusion_matrix = [[0] * num_classes for _ in range(num_classes)]
     for true, pred in zip(all_labels, all_preds):
         confusion_matrix[true][pred] += 1
