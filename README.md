@@ -92,13 +92,26 @@ npm run dev
 
 ## Testing
 
-Each layer has its own test suite, run independently:
+Each layer has its own test suite, run independently. These run against an in-process/mocked
+context (H2, MockMvc, a stubbed ai-backend) and are what CI runs on every push:
 
 ```bash
-cd ai-backend && pytest                # 33 tests — models, trainer, API
-cd logic-backend && ./gradlew test     # 33 tests — 16 unit, 8 MockMvc integration, 9 Cucumber BDD scenarios
+cd ai-backend && pytest                # 37 tests — models, trainer, API (incl. corrupt-upload cases)
+cd logic-backend && ./gradlew test     # 41 tests — 16 unit, 16 MockMvc integration (incl. destructive/security cases), 9 Cucumber BDD
 cd frontend && npm run test            # 15 unit tests (Vitest)
 cd frontend && npm run test:e2e        # 10 end-to-end tests (Cypress, requires the dev server running)
+```
+
+### Black-box API tests
+
+A separate REST Assured suite hits a really running stack over plain HTTP — real MySQL, a real
+ai-backend actually training a model, no mocks or stubs. It's not part of the default CI job
+(a full training run takes real wall-clock time), so run it manually against a live
+`docker compose up` stack:
+
+```bash
+docker compose up -d --build
+cd logic-backend && ./gradlew blackBoxTest   # 8 tests — full auth + experiment lifecycle, real training
 ```
 
 ## Project structure
