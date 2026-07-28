@@ -112,7 +112,7 @@ export function NewExperimentModal({ onClose, onCreated }: NewExperimentModalPro
             <span>Learning rate</span>
             <input
               type="number"
-              min={0.00001}
+              min={0.0001}
               max={1}
               step={0.0001}
               value={learningRate}
