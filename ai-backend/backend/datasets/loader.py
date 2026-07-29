@@ -11,7 +11,7 @@ def load_dataset(name: str, batch_size: int = 32):
         train = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
         test = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
         return (
-            DataLoader(train, batch_size=batch_size, shuffle=True),
+            DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=True),
             DataLoader(test, batch_size=batch_size),
             10, 1, (32, 32),
         )
@@ -24,7 +24,7 @@ def load_dataset(name: str, batch_size: int = 32):
         train = datasets.FashionMNIST(root="./data", train=True, download=True, transform=transform)
         test = datasets.FashionMNIST(root="./data", train=False, download=True, transform=transform)
         return (
-            DataLoader(train, batch_size=batch_size, shuffle=True),
+            DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=True),
             DataLoader(test, batch_size=batch_size),
             10, 1, (32, 32),
         )
@@ -37,7 +37,7 @@ def load_dataset(name: str, batch_size: int = 32):
         train = datasets.CIFAR10(root="./data", train=True, download=True, transform=transform)
         test = datasets.CIFAR10(root="./data", train=False, download=True, transform=transform)
         return (
-            DataLoader(train, batch_size=batch_size, shuffle=True),
+            DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=True),
             DataLoader(test, batch_size=batch_size),
             10, 3, (32, 32),
         )
