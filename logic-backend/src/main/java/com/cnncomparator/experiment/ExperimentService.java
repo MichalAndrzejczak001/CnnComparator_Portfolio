@@ -7,6 +7,7 @@ import com.cnncomparator.dto.ExperimentResponse;
 import com.cnncomparator.dto.ExperimentSummaryResponse;
 import com.cnncomparator.dto.GradCamResponse;
 import com.cnncomparator.dto.PredictResponse;
+import com.cnncomparator.dto.TrainingConfig;
 import com.cnncomparator.user.User;
 import com.cnncomparator.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -91,6 +92,39 @@ public class ExperimentService {
 
     public CompareResponse compareModels(CompareRequest request) {
         return restTemplate.postForObject(aiBackendUrl + "/compare", request, CompareResponse.class);
+    }
+
+    public List<ExperimentResponse> compareExistingExperiments(List<Long> ids, String username) {
+        return ids.stream()
+                .map(id -> {
+                    Experiment experiment = findExperiment(id);
+                    assertOwner(experiment, username);
+                    return experiment;
+                })
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public ExperimentResponse rerunExperiment(Long id, String username) {
+        Experiment original = findExperiment(id);
+        assertOwner(original, username);
+
+        ExperimentRequest request = new ExperimentRequest(
+                original.getModel(),
+                original.getDataset(),
+                new TrainingConfig(original.getEpochs(), original.getBatchSize(), original.getLearningRate()),
+                null
+        );
+
+        return createExperiment(request, username);
+    }
+
+    public ExperimentResponse updateNote(Long id, String username, String note) {
+        Experiment experiment = findExperiment(id);
+        assertOwner(experiment, username);
+        experiment.setNote(note);
+        experimentRepository.save(experiment);
+        return toResponse(experiment);
     }
 
     public PredictResponse predict(Long id, String username, MultipartFile file) throws IOException {

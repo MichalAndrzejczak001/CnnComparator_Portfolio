@@ -1,5 +1,10 @@
 package com.cnncomparator.auth;
 
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Severity;
+import io.qameta.allure.SeverityLevel;
+import io.qameta.allure.Story;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,12 +22,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Epic("Authentication")
+@Feature("Register & login")
 class AuthControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.CRITICAL)
     void registerThenLoginReturnsToken() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -44,6 +53,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Validation")
+    @Severity(SeverityLevel.NORMAL)
     void registerRejectsDuplicateUsername() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -61,6 +72,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Validation")
+    @Severity(SeverityLevel.NORMAL)
     void loginWithWrongPasswordReturnsUnauthorized() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -78,6 +91,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Validation")
+    @Severity(SeverityLevel.NORMAL)
     void registerRejectsBlankUsername() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -88,6 +103,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Validation")
+    @Severity(SeverityLevel.NORMAL)
     void registerRejectsPasswordShorterThanEightCharacters() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -98,6 +115,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Destructive")
+    @Severity(SeverityLevel.MINOR)
     void registerRejectsUsernameOverMaxLength() throws Exception {
         String tooLongUsername = "a".repeat(101);
 
@@ -108,6 +127,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Destructive")
+    @Severity(SeverityLevel.NORMAL)
     void registerRejectsMalformedJsonBody() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -116,6 +137,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Story("Security")
+    @Severity(SeverityLevel.CRITICAL)
     void registerAndLoginHandleSqlInjectionStyleUsernameSafely() throws Exception {
         String injectionAttempt = "'; DROP TABLE users; --";
 

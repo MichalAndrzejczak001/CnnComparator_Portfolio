@@ -2,6 +2,11 @@ package com.cnncomparator.experiment;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sun.net.httpserver.HttpServer;
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Severity;
+import io.qameta.allure.SeverityLevel;
+import io.qameta.allure.Story;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -25,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,6 +39,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Epic("Experiments")
+@Feature("Experiment CRUD & ai-backend proxying")
 class ExperimentControllerIntegrationTest {
 
     static HttpServer aiBackendStub;
@@ -105,6 +113,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.CRITICAL)
     void createListGetAndDeleteExperiment() throws Exception {
         String token = registerAndGetToken("experiment_owner");
 
@@ -143,6 +153,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
     void experimentIsNotVisibleToOtherUsers() throws Exception {
         String ownerToken = registerAndGetToken("owner_user");
         String otherToken = registerAndGetToken("other_user");
@@ -164,6 +176,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
     void experimentsEndpointRequiresAuthentication() throws Exception {
         MvcResult result = mockMvc.perform(get("/experiments")).andReturn();
 
@@ -171,6 +185,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.NORMAL)
     void compareModelsProxiesToAiBackend() throws Exception {
         String token = registerAndGetToken("compare_user");
 
@@ -186,6 +202,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Negative")
+    @Severity(SeverityLevel.NORMAL)
     void predictRejectsNonExistentExperiment() throws Exception {
         String token = registerAndGetToken("predict_missing_experiment_user");
         MockMultipartFile file = new MockMultipartFile("file", "digit.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});
@@ -197,6 +215,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
     void predictRejectsExperimentNotOwnedByCaller() throws Exception {
         String ownerToken = registerAndGetToken("predict_owner_user");
         String otherToken = registerAndGetToken("predict_other_user");
@@ -210,6 +230,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Destructive")
+    @Severity(SeverityLevel.NORMAL)
     void predictRejectsRequestMissingFilePart() throws Exception {
         String token = registerAndGetToken("predict_missing_file_user");
         long id = createExperimentAndGetId(token);
@@ -220,6 +242,8 @@ class ExperimentControllerIntegrationTest {
     }
 
     @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
     void gradcamRejectsExperimentNotOwnedByCaller() throws Exception {
         String ownerToken = registerAndGetToken("gradcam_owner_user");
         String otherToken = registerAndGetToken("gradcam_other_user");
@@ -230,5 +254,127 @@ class ExperimentControllerIntegrationTest {
                         .file(file)
                         .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.NORMAL)
+    void rerunExperimentCreatesANewExperimentWithTheSameConfig() throws Exception {
+        String token = registerAndGetToken("rerun_user");
+        long originalId = createExperimentAndGetId(token);
+
+        MvcResult rerunResult = mockMvc.perform(post("/experiments/{id}/rerun", originalId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.model").value("simple_cnn"))
+                .andExpect(jsonPath("$.dataset").value("mnist"))
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/experiment-response.schema.json")))
+                .andReturn();
+
+        Number newId = JsonPath.read(rerunResult.getResponse().getContentAsString(), "$.id");
+        assertThat(newId.longValue()).isNotEqualTo(originalId);
+
+        mockMvc.perform(get("/experiments")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
+    void rerunExperimentRejectsExperimentNotOwnedByCaller() throws Exception {
+        String ownerToken = registerAndGetToken("rerun_owner_user");
+        String otherToken = registerAndGetToken("rerun_other_user");
+        long id = createExperimentAndGetId(ownerToken);
+
+        mockMvc.perform(post("/experiments/{id}/rerun", id)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.NORMAL)
+    void updateNoteChangesTheStoredNote() throws Exception {
+        String token = registerAndGetToken("note_user");
+        long id = createExperimentAndGetId(token);
+
+        mockMvc.perform(patch("/experiments/{id}/note", id)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"note":"updated after training"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note").value("updated after training"))
+                .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/experiment-response.schema.json")));
+
+        mockMvc.perform(get("/experiments/{id}", id)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note").value("updated after training"));
+    }
+
+    @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
+    void updateNoteRejectsExperimentNotOwnedByCaller() throws Exception {
+        String ownerToken = registerAndGetToken("note_owner_user");
+        String otherToken = registerAndGetToken("note_other_user");
+        long id = createExperimentAndGetId(ownerToken);
+
+        mockMvc.perform(patch("/experiments/{id}/note", id)
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"note":"not mine to change"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.NORMAL)
+    void compareExistingExperimentsReturnsTheRequestedOwnedExperiments() throws Exception {
+        String token = registerAndGetToken("compare_existing_user");
+        long firstId = createExperimentAndGetId(token);
+        long secondId = createExperimentAndGetId(token);
+
+        mockMvc.perform(post("/experiments/compare-existing")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[" + firstId + "," + secondId + "]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].model").value("simple_cnn"));
+    }
+
+    @Test
+    @Story("Authorization")
+    @Severity(SeverityLevel.CRITICAL)
+    void compareExistingExperimentsRejectsAnExperimentNotOwnedByCaller() throws Exception {
+        String ownerToken = registerAndGetToken("compare_existing_owner_user");
+        String otherToken = registerAndGetToken("compare_existing_other_user");
+        long id = createExperimentAndGetId(ownerToken);
+
+        mockMvc.perform(post("/experiments/compare-existing")
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[" + id + "]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Story("Destructive")
+    @Severity(SeverityLevel.NORMAL)
+    void compareExistingExperimentsRejectsEmptyIdList() throws Exception {
+        String token = registerAndGetToken("compare_existing_empty_user");
+
+        mockMvc.perform(post("/experiments/compare-existing")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[]}"))
+                .andExpect(status().isBadRequest());
     }
 }

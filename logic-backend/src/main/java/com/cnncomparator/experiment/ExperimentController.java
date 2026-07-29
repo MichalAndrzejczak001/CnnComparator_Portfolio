@@ -1,11 +1,13 @@
 package com.cnncomparator.experiment;
 
+import com.cnncomparator.dto.CompareExistingRequest;
 import com.cnncomparator.dto.CompareRequest;
 import com.cnncomparator.dto.CompareResponse;
 import com.cnncomparator.dto.ExperimentRequest;
 import com.cnncomparator.dto.ExperimentResponse;
 import com.cnncomparator.dto.ExperimentSummaryResponse;
 import com.cnncomparator.dto.GradCamResponse;
+import com.cnncomparator.dto.NoteRequest;
 import com.cnncomparator.dto.PredictResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -59,6 +62,25 @@ public class ExperimentController {
     @PostMapping("/compare")
     public ResponseEntity<CompareResponse> compareModels(@Valid @RequestBody CompareRequest request) {
         return ResponseEntity.ok(experimentService.compareModels(request));
+    }
+
+    @PostMapping("/compare-existing")
+    public ResponseEntity<List<ExperimentResponse>> compareExistingExperiments(
+            @Valid @RequestBody CompareExistingRequest request, Authentication authentication) {
+        return ResponseEntity.ok(experimentService.compareExistingExperiments(request.ids(), authentication.getName()));
+    }
+
+    @PostMapping("/{id}/rerun")
+    public ResponseEntity<ExperimentResponse> rerunExperiment(@PathVariable Long id, Authentication authentication) {
+        ExperimentResponse response = experimentService.rerunExperiment(id, authentication.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PatchMapping("/{id}/note")
+    public ResponseEntity<ExperimentResponse> updateNote(@PathVariable Long id,
+                                                          @Valid @RequestBody NoteRequest request,
+                                                          Authentication authentication) {
+        return ResponseEntity.ok(experimentService.updateNote(id, authentication.getName(), request.note()));
     }
 
     @PostMapping(value = "/{id}/predict", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
