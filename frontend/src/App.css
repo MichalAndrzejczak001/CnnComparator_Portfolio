@@ -680,6 +680,16 @@ input[type='file'] {
   color: var(--text-dim);
 }
 
+.image-preview,
+.gradcam-image {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
 /* Compare */
 .compare-page h1 {
   margin-bottom: var(--space-1);
