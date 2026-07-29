@@ -74,7 +74,7 @@ export function GradCamModal({ experimentId, onClose }: GradCamModalProps) {
             <p className="predict-label">
               Predicted: <strong>{result.predicted_class}</strong>
             </p>
-            <ConfidenceList confidences={result.confidences} />
+            <ConfidenceList confidences={result.confidences} predictedLabel={result.predicted_class} />
           </div>
         )}
       </div>
