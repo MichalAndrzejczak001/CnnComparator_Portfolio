@@ -3,3 +3,4 @@ build/
 out/
 *.class
 !gradle/wrapper/gradle-wrapper.jar
+ajcore*.txt
