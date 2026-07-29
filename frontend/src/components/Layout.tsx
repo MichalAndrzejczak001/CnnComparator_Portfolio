@@ -18,6 +18,8 @@ export function Layout() {
         <nav className="app-nav">
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/dashboard/compare">Compare</Link>
+          <Link to="/dashboard/models">Models</Link>
+          <Link to="/dashboard/datasets">Datasets</Link>
         </nav>
         <button type="button" className="btn-outline" onClick={handleLogout}>
           Log out

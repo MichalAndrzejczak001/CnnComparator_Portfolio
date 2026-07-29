@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, clearToken, deleteExperiment, getToken, listExperiments, login, setToken } from './client'
+import {
+  ApiError,
+  clearToken,
+  compareExistingExperiments,
+  deleteExperiment,
+  getToken,
+  listExperiments,
+  login,
+  rerunExperiment,
+  setToken,
+  updateExperimentNote,
+} from './client'
 
 describe('token storage', () => {
   afterEach(() => {
@@ -83,5 +94,37 @@ describe('request', () => {
     vi.mocked(fetch).mockResolvedValue(new Response('not json', { status: 500, statusText: 'Server Error' }))
 
     await expect(deleteExperiment(1)).rejects.toMatchObject(new ApiError(500, 'Server Error'))
+  })
+
+  it('posts to the rerun endpoint for the given experiment', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: 2 }), { status: 201 }))
+
+    await rerunExperiment(1)
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe('/experiments/1/rerun')
+    expect(options?.method).toBe('POST')
+  })
+
+  it('sends a PATCH request with the new note', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: 1, note: 'updated' }), { status: 200 }))
+
+    await updateExperimentNote(1, { note: 'updated' })
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe('/experiments/1/note')
+    expect(options?.method).toBe('PATCH')
+    expect(options?.body).toBe(JSON.stringify({ note: 'updated' }))
+  })
+
+  it('posts the selected ids to the compare-existing endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }))
+
+    await compareExistingExperiments({ ids: [1, 2, 3] })
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe('/experiments/compare-existing')
+    expect(options?.method).toBe('POST')
+    expect(options?.body).toBe(JSON.stringify({ ids: [1, 2, 3] }))
   })
 })

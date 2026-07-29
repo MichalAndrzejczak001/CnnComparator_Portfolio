@@ -68,6 +68,14 @@ export interface CompareRequest {
   training: TrainingConfig
 }
 
+export interface CompareExistingRequest {
+  ids: number[]
+}
+
+export interface NoteRequest {
+  note: string
+}
+
 export interface CompareResultItem {
   model: ModelName
   train_loss_per_epoch: number[]

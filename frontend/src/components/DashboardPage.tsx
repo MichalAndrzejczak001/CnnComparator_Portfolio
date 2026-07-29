@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, deleteExperiment, listExperiments } from '../api/client'
-import type { ExperimentSummaryResponse } from '../types/api'
+import { ApiError, compareExistingExperiments, deleteExperiment, listExperiments } from '../api/client'
+import type { ExperimentResponse, ExperimentSummaryResponse } from '../types/api'
 import { NewExperimentModal } from './NewExperimentModal'
 
 const MODEL_LABELS: Record<string, string> = {
@@ -24,6 +24,9 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [showNewExperiment, setShowNewExperiment] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [compareResults, setCompareResults] = useState<ExperimentResponse[] | null>(null)
+  const [comparing, setComparing] = useState(false)
 
   const loadExperiments = useCallback(async () => {
     setError(null)
@@ -51,6 +54,31 @@ export function DashboardPage() {
     }
   }
 
+  function toggleSelected(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  async function handleCompareSelected() {
+    setComparing(true)
+    setError(null)
+    try {
+      const results = await compareExistingExperiments({ ids: [...selectedIds] })
+      setCompareResults(results)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'Could not compare selected experiments.')
+    } finally {
+      setComparing(false)
+    }
+  }
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -67,27 +95,76 @@ export function DashboardPage() {
       {experiments?.length === 0 && <p>No experiments yet. Train your first model to get started.</p>}
 
       {experiments && experiments.length > 0 && (
-        <ul className="experiment-list">
-          {experiments.map((experiment) => (
-            <li key={experiment.id} className="card experiment-card">
-              <Link to={`/dashboard/experiments/${experiment.id}`} className="experiment-card-link">
-                <span className="experiment-model">{MODEL_LABELS[experiment.model] ?? experiment.model}</span>
-                <span className="experiment-dataset">{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</span>
-                <span className="experiment-accuracy">{(experiment.test_accuracy * 100).toFixed(2)}%</span>
-                <span className="experiment-date">{new Date(experiment.created_at).toLocaleString()}</span>
-                {experiment.note && <span className="experiment-note">{experiment.note}</span>}
-              </Link>
-              <button
-                type="button"
-                className="btn-outline"
-                onClick={() => handleDelete(experiment.id)}
-                disabled={deletingId === experiment.id}
-              >
-                {deletingId === experiment.id ? 'Deleting…' : 'Delete'}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="dashboard-compare-bar">
+            <span>{selectedIds.size} selected</span>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleCompareSelected}
+              disabled={selectedIds.size < 2 || comparing}
+            >
+              {comparing ? 'Comparing…' : `Compare selected (${selectedIds.size})`}
+            </button>
+          </div>
+
+          <ul className="experiment-list">
+            {experiments.map((experiment) => (
+              <li key={experiment.id} className="card experiment-card">
+                <input
+                  type="checkbox"
+                  className="experiment-select-checkbox"
+                  checked={selectedIds.has(experiment.id)}
+                  onChange={() => toggleSelected(experiment.id)}
+                  aria-label={`Select ${MODEL_LABELS[experiment.model] ?? experiment.model} for comparison`}
+                />
+                <Link to={`/dashboard/experiments/${experiment.id}`} className="experiment-card-link">
+                  <span className="experiment-model">{MODEL_LABELS[experiment.model] ?? experiment.model}</span>
+                  <span className="experiment-dataset">{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</span>
+                  <span className="experiment-accuracy">{(experiment.test_accuracy * 100).toFixed(2)}%</span>
+                  <span className="experiment-date">{new Date(experiment.created_at).toLocaleString()}</span>
+                  {experiment.note && <span className="experiment-note">{experiment.note}</span>}
+                </Link>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  onClick={() => handleDelete(experiment.id)}
+                  disabled={deletingId === experiment.id}
+                >
+                  {deletingId === experiment.id ? 'Deleting…' : 'Delete'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {compareResults && (
+        <div className="card compare-selected-results">
+          <h2>Comparison</h2>
+          <table className="compare-selected-table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Dataset</th>
+                <th>Accuracy</th>
+                <th>Test loss</th>
+                <th>Training time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {compareResults.map((result) => (
+                <tr key={result.id}>
+                  <td>{MODEL_LABELS[result.model] ?? result.model}</td>
+                  <td>{DATASET_LABELS[result.dataset] ?? result.dataset}</td>
+                  <td>{(result.test_accuracy * 100).toFixed(2)}%</td>
+                  <td>{result.test_loss.toFixed(4)}</td>
+                  <td>{result.training_time_seconds.toFixed(1)}s</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showNewExperiment && (

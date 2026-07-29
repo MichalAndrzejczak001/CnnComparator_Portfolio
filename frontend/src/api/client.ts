@@ -1,5 +1,6 @@
 import type {
   AuthResponse,
+  CompareExistingRequest,
   CompareRequest,
   CompareResponse,
   ExperimentRequest,
@@ -7,6 +8,7 @@ import type {
   ExperimentSummaryResponse,
   GradCamResponse,
   LoginRequest,
+  NoteRequest,
   PredictResponse,
   ProblemDetail,
   RegisterRequest,
@@ -88,6 +90,18 @@ export function deleteExperiment(id: number): Promise<void> {
 
 export function compareModels(payload: CompareRequest): Promise<CompareResponse> {
   return request('/experiments/compare', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function compareExistingExperiments(payload: CompareExistingRequest): Promise<ExperimentResponse[]> {
+  return request('/experiments/compare-existing', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function rerunExperiment(id: number): Promise<ExperimentResponse> {
+  return request(`/experiments/${id}/rerun`, { method: 'POST' })
+}
+
+export function updateExperimentNote(id: number, payload: NoteRequest): Promise<ExperimentResponse> {
+  return request(`/experiments/${id}/note`, { method: 'PATCH', body: JSON.stringify(payload) })
 }
 
 export function predict(experimentId: number, file: File): Promise<PredictResponse> {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ApiError, deleteExperiment, getExperiment } from '../api/client'
+import { ApiError, deleteExperiment, getExperiment, rerunExperiment, updateExperimentNote } from '../api/client'
 import type { DatasetName, ExperimentResponse } from '../types/api'
 import { AugmentModal } from './AugmentModal'
 import { ClassifyImageModal } from './ClassifyImageModal'
@@ -41,7 +41,11 @@ export function ExperimentDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [rerunning, setRerunning] = useState(false)
   const [activeModal, setActiveModal] = useState<ActiveModal>(null)
+  const [editingNote, setEditingNote] = useState(false)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
 
   const loadExperiment = useCallback(async () => {
     setError(null)
@@ -74,6 +78,36 @@ export function ExperimentDetailPage() {
     }
   }
 
+  async function handleRerun() {
+    setRerunning(true)
+    setError(null)
+    try {
+      const rerun = await rerunExperiment(experimentId)
+      navigate(`/dashboard/experiments/${rerun.id}`)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'Could not rerun experiment.')
+      setRerunning(false)
+    }
+  }
+
+  function startEditingNote() {
+    setNoteDraft(experiment?.note ?? '')
+    setEditingNote(true)
+  }
+
+  async function handleSaveNote() {
+    setSavingNote(true)
+    try {
+      const updated = await updateExperimentNote(experimentId, { note: noteDraft })
+      setExperiment(updated)
+      setEditingNote(false)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'Could not update note.')
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
   if (notFound) {
     return (
       <div>
@@ -102,11 +136,38 @@ export function ExperimentDetailPage() {
           <h1>
             {MODEL_LABELS[experiment.model] ?? experiment.model} on {DATASET_LABELS[experiment.dataset] ?? experiment.dataset}
           </h1>
-          {experiment.note && <p>{experiment.note}</p>}
+          {editingNote ? (
+            <div className="note-editor">
+              <input
+                type="text"
+                value={noteDraft}
+                onChange={(event) => setNoteDraft(event.target.value)}
+                placeholder="Add a note…"
+              />
+              <button type="button" className="btn-primary" onClick={handleSaveNote} disabled={savingNote}>
+                {savingNote ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" className="btn-outline" onClick={() => setEditingNote(false)} disabled={savingNote}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <p className="note-display">
+              {experiment.note || 'No note yet.'}{' '}
+              <button type="button" className="btn-link" onClick={startEditingNote}>
+                Edit note
+              </button>
+            </p>
+          )}
         </div>
-        <button type="button" className="btn-outline" onClick={handleDelete} disabled={deleting}>
-          {deleting ? 'Deleting…' : 'Delete experiment'}
-        </button>
+        <div className="experiment-header-actions">
+          <button type="button" className="btn-outline" onClick={handleRerun} disabled={rerunning}>
+            {rerunning ? 'Rerunning…' : 'Rerun experiment'}
+          </button>
+          <button type="button" className="btn-outline" onClick={handleDelete} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete experiment'}
+          </button>
+        </div>
       </div>
 
       {error && <p className="form-error">{error}</p>}
