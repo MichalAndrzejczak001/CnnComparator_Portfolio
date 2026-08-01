@@ -106,8 +106,9 @@ describe('DashboardPage', () => {
     await screen.findByText('LeNet-5')
 
     const checkboxes = screen.getAllByRole('checkbox')
-    await user.click(checkboxes[0])
+    // checkboxes[0] is the "select all" header checkbox; experiment rows start at index 1
     await user.click(checkboxes[1])
+    await user.click(checkboxes[2])
 
     await user.click(screen.getByRole('button', { name: 'Compare selected (2)' }))
 

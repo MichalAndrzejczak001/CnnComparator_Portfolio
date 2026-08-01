@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, compareExistingExperiments, deleteExperiment, listExperiments } from '../api/client'
 import type { ExperimentResponse, ExperimentSummaryResponse } from '../types/api'
@@ -42,6 +42,17 @@ export function DashboardPage() {
     loadExperiments()
   }, [loadExperiments])
 
+  const experimentNumbers = useMemo(() => {
+    const numbers = new Map<number, number>()
+    if (!experiments) {
+      return numbers
+    }
+    ;[...experiments]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .forEach((experiment, index) => numbers.set(experiment.id, index + 1))
+    return numbers
+  }, [experiments])
+
   async function handleDelete(id: number) {
     setDeletingId(id)
     try {
@@ -63,6 +74,15 @@ export function DashboardPage() {
         next.add(id)
       }
       return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      if (experiments && prev.size === experiments.length) {
+        return new Set()
+      }
+      return new Set(experiments?.map((experiment) => experiment.id) ?? [])
     })
   }
 
@@ -88,6 +108,11 @@ export function DashboardPage() {
         </button>
       </div>
 
+      <p className="dashboard-intro-note">
+        Tu znajduje się historia Twoich eksperymentów — możesz przejrzeć wyniki, porównać kilka z nich naraz albo
+        ponownie uruchomić trening.
+      </p>
+
       {error && <p className="form-error">{error}</p>}
 
       {experiments === null && !error && <p>Loading experiments…</p>}
@@ -108,6 +133,31 @@ export function DashboardPage() {
             </button>
           </div>
 
+          <div className="experiment-list-header">
+            <input
+              type="checkbox"
+              className="experiment-select-checkbox"
+              checked={experiments.length > 0 && selectedIds.size === experiments.length}
+              ref={(el) => {
+                if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < experiments.length
+              }}
+              onChange={toggleSelectAll}
+              aria-label="Select all experiments"
+            />
+            <span className="experiment-header-grid">
+              <span>Nr</span>
+              <span>ID</span>
+              <span>Model</span>
+              <span>Dataset</span>
+              <span>Accuracy</span>
+              <span>Date</span>
+              <span>Note</span>
+            </span>
+            <button type="button" className="btn-outline experiment-list-header-spacer" tabIndex={-1} disabled aria-hidden="true">
+              Delete
+            </button>
+          </div>
+
           <ul className="experiment-list">
             {experiments.map((experiment) => (
               <li key={experiment.id} className="card experiment-card">
@@ -119,6 +169,8 @@ export function DashboardPage() {
                   aria-label={`Select ${MODEL_LABELS[experiment.model] ?? experiment.model} for comparison`}
                 />
                 <Link to={`/dashboard/experiments/${experiment.id}`} className="experiment-card-link">
+                  <span className="experiment-number">{experimentNumbers.get(experiment.id)}</span>
+                  <span className="experiment-id">#{experiment.id}</span>
                   <span className="experiment-model">{MODEL_LABELS[experiment.model] ?? experiment.model}</span>
                   <span className="experiment-dataset">{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</span>
                   <span className="experiment-accuracy">{(experiment.test_accuracy * 100).toFixed(2)}%</span>
