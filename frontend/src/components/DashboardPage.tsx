@@ -99,8 +99,7 @@ export function DashboardPage() {
       </div>
 
       <p className="dashboard-intro-note">
-        Tu znajduje się historia Twoich eksperymentów — możesz przejrzeć wyniki, porównać kilka z nich naraz albo
-        ponownie uruchomić trening.
+        This is your experiment history — review results, compare several at once, or rerun a training.
       </p>
 
       {error && <p className="form-error">{error}</p>}
