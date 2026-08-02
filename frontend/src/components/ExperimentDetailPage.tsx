@@ -8,6 +8,8 @@ import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { DrawDigitModal } from './DrawDigitModal'
 import { GradCamModal } from './GradCamModal'
 import { LossChart } from './charts/LossChart'
+import { PerClassMetricsTable } from './charts/PerClassMetricsTable'
+import { SamplePredictionsGallery } from './SamplePredictionsGallery'
 
 const MODEL_LABELS: Record<string, string> = {
   simple_cnn: 'SimpleCNN',
@@ -172,59 +174,85 @@ export function ExperimentDetailPage() {
 
       {error && <p className="form-error">{error}</p>}
 
-      <div className="experiment-stats">
-        <div className="card">
-          <span>Test accuracy</span>
-          <strong>{(experiment.test_accuracy * 100).toFixed(2)}%</strong>
-        </div>
-        <div className="card">
-          <span>Test loss</span>
-          <strong>{experiment.test_loss.toFixed(4)}</strong>
-        </div>
-        <div className="card">
-          <span>Training time</span>
-          <strong>{experiment.training_time_seconds.toFixed(1)}s</strong>
-        </div>
-        <div className="card">
-          <span>Epochs</span>
-          <strong>{experiment.epochs}</strong>
+      <div className="experiment-summary-section">
+        <h2>Experiment results</h2>
+        <div className="experiment-stats">
+          <div className="card">
+            <span>Test accuracy</span>
+            <strong>{(experiment.test_accuracy * 100).toFixed(2)}%</strong>
+          </div>
+          <div className="card">
+            <span>Test loss</span>
+            <strong>{experiment.test_loss.toFixed(4)}</strong>
+          </div>
+          <div className="card">
+            <span>Training time</span>
+            <strong>{experiment.training_time_seconds.toFixed(1)}s</strong>
+          </div>
         </div>
       </div>
 
-      <div className="experiment-charts">
-        <LossChart trainLoss={experiment.train_loss_per_epoch} testLoss={experiment.test_loss_per_epoch} />
-        <ConfusionMatrix matrix={experiment.confusion_matrix} labels={classLabels} />
+      <div className="experiment-summary-section">
+        <h2>Experiment parameters</h2>
+        <div className="experiment-stats">
+          <div className="card">
+            <span>Model</span>
+            <strong>{MODEL_LABELS[experiment.model] ?? experiment.model}</strong>
+          </div>
+          <div className="card">
+            <span>Dataset</span>
+            <strong>{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</strong>
+          </div>
+          <div className="card">
+            <span>Epochs</span>
+            <strong>{experiment.epochs}</strong>
+          </div>
+          <div className="card">
+            <span>Batch size</span>
+            <strong>{experiment.batch_size}</strong>
+          </div>
+          <div className="card">
+            <span>Learning rate</span>
+            <strong>{experiment.learning_rate}</strong>
+          </div>
+        </div>
       </div>
 
-      <div className="experiment-actions">
-        <button type="button" className="btn-primary" onClick={() => setActiveModal('classify')}>
-          Classify image
-        </button>
-        <button type="button" className="btn-primary" onClick={() => setActiveModal('gradcam')}>
-          Grad-CAM
-        </button>
-        <button type="button" className="btn-primary" onClick={() => setActiveModal('draw')}>
-          Draw a digit
-        </button>
-        <button type="button" className="btn-outline" onClick={() => setActiveModal('augment')}>
-          Augment image
-        </button>
+      <div className="experiment-summary-section">
+        <h2>Training charts</h2>
+        <div className="experiment-charts">
+          <LossChart trainLoss={experiment.train_loss_per_epoch} testLoss={experiment.test_loss_per_epoch} />
+          <ConfusionMatrix matrix={experiment.confusion_matrix} labels={classLabels} />
+        </div>
+      </div>
+
+      <div className="experiment-summary-section">
+        <h2>Per-class metrics</h2>
+        <PerClassMetricsTable matrix={experiment.confusion_matrix} labels={classLabels} />
+      </div>
+
+      <div className="experiment-summary-section">
+        <h2>Try it out</h2>
+        <div className="experiment-actions">
+          <button type="button" className="btn-primary" onClick={() => setActiveModal('classify')}>
+            Classify image
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setActiveModal('gradcam')}>
+            Grad-CAM
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setActiveModal('draw')}>
+            Draw a digit
+          </button>
+          <button type="button" className="btn-outline" onClick={() => setActiveModal('augment')}>
+            Augment image
+          </button>
+        </div>
       </div>
 
       {experiment.sample_gradcams.length > 0 && (
-        <div className="gradcam-gallery">
+        <div className="experiment-summary-section gradcam-gallery">
           <h2>Sample predictions</h2>
-          <div className="gradcam-gallery-grid">
-            {experiment.sample_gradcams.map((sample, index) => (
-              <div className="card gradcam-gallery-item" key={index}>
-                <img src={`data:image/png;base64,${sample.gradcam_image}`} alt={`Grad-CAM sample ${index + 1}`} />
-                <p>
-                  True: <strong>{sample.true_label}</strong> · Predicted: <strong>{sample.predicted_label}</strong>
-                </p>
-                <p>{(sample.confidence * 100).toFixed(1)}% confidence</p>
-              </div>
-            ))}
-          </div>
+          <SamplePredictionsGallery samples={experiment.sample_gradcams} />
         </div>
       )}
 
