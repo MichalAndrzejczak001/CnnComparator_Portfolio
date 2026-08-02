@@ -318,11 +318,17 @@ input[type='file'] {
 }
 
 .app-topbar {
+  border-bottom: 1px solid var(--border);
+}
+
+.app-topbar-inner {
   display: flex;
   align-items: center;
   gap: var(--space-5);
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
   padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--border);
 }
 
 .app-logo {
@@ -1737,4 +1743,53 @@ input[type='file'] {
   font-size: 13px;
   color: var(--text-dim);
   text-align: right;
+}
+
+/* Most confused pairs */
+.confused-pairs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.confused-pairs-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+}
+
+.confused-pairs-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.confused-pairs-labels {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.confused-pairs-labels strong {
+  color: var(--text-h);
+}
+
+.confused-pairs-count {
+  font-weight: 700;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.confused-pairs-share {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
 }

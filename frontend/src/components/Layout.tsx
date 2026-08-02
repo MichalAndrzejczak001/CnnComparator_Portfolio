@@ -12,20 +12,22 @@ export function Layout() {
   return (
     <div className="app-shell">
       <header className="app-topbar">
-        <Link to="/dashboard" className="app-logo">
-          CnnComparator
-        </Link>
-        <nav className="app-nav">
-          <Link to="/dashboard/overview">Overview</Link>
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/dashboard/compare">Compare</Link>
-          <Link to="/dashboard/compare-selected">Compare selected</Link>
-          <Link to="/dashboard/models">Models</Link>
-          <Link to="/dashboard/datasets">Datasets</Link>
-        </nav>
-        <button type="button" className="btn-outline" onClick={handleLogout}>
-          Log out
-        </button>
+        <div className="app-topbar-inner">
+          <Link to="/dashboard" className="app-logo">
+            CnnComparator
+          </Link>
+          <nav className="app-nav">
+            <Link to="/dashboard/overview">Overview</Link>
+            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/dashboard/compare">Compare</Link>
+            <Link to="/dashboard/compare-selected">Compare selected</Link>
+            <Link to="/dashboard/models">Models</Link>
+            <Link to="/dashboard/datasets">Datasets</Link>
+          </nav>
+          <button type="button" className="btn-outline" onClick={handleLogout}>
+            Log out
+          </button>
+        </div>
       </header>
 
       <main className="app-content">
