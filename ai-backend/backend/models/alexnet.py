@@ -7,17 +7,17 @@ class AlexNet(nn.Module):
         super().__init__()
         self.features = nn.Sequential(
             nn.Conv2d(in_channels, 64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(64, 192, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(192, 384, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(384, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
