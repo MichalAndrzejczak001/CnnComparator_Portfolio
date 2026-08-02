@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ApiError, compareExistingExperiments, deleteExperiment, listExperiments } from '../api/client'
-import type { ExperimentResponse, ExperimentSummaryResponse } from '../types/api'
+import { Link, useNavigate } from 'react-router-dom'
+import { ApiError, deleteExperiment, listExperiments } from '../api/client'
+import type { ExperimentSummaryResponse } from '../types/api'
 import { NewExperimentModal } from './NewExperimentModal'
 
 const MODEL_LABELS: Record<string, string> = {
@@ -20,13 +20,12 @@ const DATASET_LABELS: Record<string, string> = {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const [experiments, setExperiments] = useState<ExperimentSummaryResponse[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showNewExperiment, setShowNewExperiment] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  const [compareResults, setCompareResults] = useState<ExperimentResponse[] | null>(null)
-  const [comparing, setComparing] = useState(false)
 
   const loadExperiments = useCallback(async () => {
     setError(null)
@@ -86,17 +85,8 @@ export function DashboardPage() {
     })
   }
 
-  async function handleCompareSelected() {
-    setComparing(true)
-    setError(null)
-    try {
-      const results = await compareExistingExperiments({ ids: [...selectedIds] })
-      setCompareResults(results)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.detail : 'Could not compare selected experiments.')
-    } finally {
-      setComparing(false)
-    }
+  function handleCompareSelected() {
+    navigate(`/dashboard/compare-selected?ids=${[...selectedIds].join(',')}`)
   }
 
   return (
@@ -127,9 +117,9 @@ export function DashboardPage() {
               type="button"
               className="btn-primary"
               onClick={handleCompareSelected}
-              disabled={selectedIds.size < 2 || comparing}
+              disabled={selectedIds.size < 2}
             >
-              {comparing ? 'Comparing…' : `Compare selected (${selectedIds.size})`}
+              {`Compare selected (${selectedIds.size})`}
             </button>
           </div>
 
@@ -189,34 +179,6 @@ export function DashboardPage() {
             ))}
           </ul>
         </>
-      )}
-
-      {compareResults && (
-        <div className="card compare-selected-results">
-          <h2>Comparison</h2>
-          <table className="compare-selected-table">
-            <thead>
-              <tr>
-                <th>Model</th>
-                <th>Dataset</th>
-                <th>Accuracy</th>
-                <th>Test loss</th>
-                <th>Training time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {compareResults.map((result) => (
-                <tr key={result.id}>
-                  <td>{MODEL_LABELS[result.model] ?? result.model}</td>
-                  <td>{DATASET_LABELS[result.dataset] ?? result.dataset}</td>
-                  <td>{(result.test_accuracy * 100).toFixed(2)}%</td>
-                  <td>{result.test_loss.toFixed(4)}</td>
-                  <td>{result.training_time_seconds.toFixed(1)}s</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       )}
 
       {showNewExperiment && (

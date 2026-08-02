@@ -1,18 +1,17 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
 
-const { listExperiments, deleteExperiment, compareExistingExperiments } = vi.hoisted(() => ({
+const { listExperiments, deleteExperiment } = vi.hoisted(() => ({
   listExperiments: vi.fn(),
   deleteExperiment: vi.fn(),
-  compareExistingExperiments: vi.fn(),
 }))
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
-  return { ...actual, listExperiments, deleteExperiment, compareExistingExperiments }
+  return { ...actual, listExperiments, deleteExperiment }
 })
 
 const EXPERIMENTS = [
@@ -36,8 +35,11 @@ const EXPERIMENTS = [
 
 function renderDashboard() {
   return render(
-    <MemoryRouter>
-      <DashboardPage />
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <Routes>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard/compare-selected" element={<div>Compare selected page</div>} />
+      </Routes>
     </MemoryRouter>,
   )
 }
@@ -80,27 +82,9 @@ describe('DashboardPage', () => {
     expect(deleteExperiment).toHaveBeenCalledWith(1)
   })
 
-  it('compares selected experiments and renders a results table', async () => {
+  it('navigates to the compare-selected page with the chosen experiment ids', async () => {
     const user = userEvent.setup()
     listExperiments.mockResolvedValue(EXPERIMENTS)
-    compareExistingExperiments.mockResolvedValue([
-      {
-        id: 1,
-        model: 'lenet5',
-        dataset: 'mnist',
-        test_accuracy: 0.9842,
-        test_loss: 0.05,
-        training_time_seconds: 12.3,
-      },
-      {
-        id: 2,
-        model: 'resnet18',
-        dataset: 'cifar10',
-        test_accuracy: 0.8123,
-        test_loss: 0.4,
-        training_time_seconds: 30.1,
-      },
-    ])
 
     renderDashboard()
     await screen.findByText('LeNet-5')
@@ -112,7 +96,6 @@ describe('DashboardPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Compare selected (2)' }))
 
-    await waitFor(() => expect(compareExistingExperiments).toHaveBeenCalledWith({ ids: [1, 2] }))
-    expect(await screen.findByText('Comparison')).toBeInTheDocument()
+    expect(await screen.findByText('Compare selected page')).toBeInTheDocument()
   })
 })
