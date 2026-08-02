@@ -140,9 +140,19 @@ export function DrawDigitModal({ experimentId, onClose }: DrawDigitModalProps) {
 
         {result && (
           <div className="predict-result">
-            <p className="predict-label">
-              Predicted: <strong>{result.predicted_class}</strong>
-            </p>
+            <div className="predict-hero">
+              <span className="predict-hero-eyebrow">Predicted class</span>
+              <div className="predict-hero-main">
+                <strong className="predict-hero-value">{result.predicted_class}</strong>
+                <span className="predict-hero-confidence">
+                  {(
+                    (result.confidences.find((c) => c.label === result.predicted_class)?.confidence ?? 0) * 100
+                  ).toFixed(1)}
+                  % confidence
+                </span>
+              </div>
+            </div>
+            <p className="predict-breakdown-label">Confidence by class</p>
             <ConfidenceList confidences={result.confidences} predictedLabel={result.predicted_class} />
           </div>
         )}

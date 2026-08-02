@@ -133,7 +133,15 @@ export function AugmentModal({ onClose }: AugmentModalProps) {
 
         {error && <p className="form-error">{error}</p>}
 
-        <canvas ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE} className="augment-canvas" />
+        <div className="augment-preview">
+          <span className="predict-hero-eyebrow">Live preview</span>
+          <div className="augment-canvas-wrap">
+            <canvas ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE} className="augment-canvas" />
+            {!preview && <p className="augment-canvas-placeholder">Upload an image to preview the augmentation</p>}
+          </div>
+        </div>
+
+        <p className="predict-breakdown-label">Adjustments</p>
 
         <label className="form-field">
           <span>Rotation ({rotation}°)</span>
