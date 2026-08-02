@@ -8,6 +8,7 @@ import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { DrawDigitModal } from './DrawDigitModal'
 import { GradCamModal } from './GradCamModal'
 import { LossChart } from './charts/LossChart'
+import { MostConfusedPairs } from './charts/MostConfusedPairs'
 import { PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { SamplePredictionsGallery } from './SamplePredictionsGallery'
 
@@ -229,6 +230,11 @@ export function ExperimentDetailPage() {
       <div className="experiment-summary-section">
         <h2>Per-class metrics</h2>
         <PerClassMetricsTable matrix={experiment.confusion_matrix} labels={classLabels} />
+      </div>
+
+      <div className="experiment-summary-section">
+        <h2>Most confused pairs</h2>
+        <MostConfusedPairs matrix={experiment.confusion_matrix} labels={classLabels} />
       </div>
 
       <div className="experiment-summary-section">
