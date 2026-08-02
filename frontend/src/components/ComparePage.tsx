@@ -1,8 +1,26 @@
-import { useState, type FormEvent } from 'react'
-import { ApiError, compareModels } from '../api/client'
-import type { CompareResponse, DatasetName, ModelName } from '../types/api'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { ApiError, getCompareJob, startCompareJob } from '../api/client'
+import type { CompareJobStatus, CompareResponse, DatasetName, ModelName } from '../types/api'
 import { AccuracyTimeChart } from './charts/AccuracyTimeChart'
 import { RadarChart } from './charts/RadarChart'
+
+const POLL_INTERVAL_MS = 5000
+const JOB_ID_STORAGE_KEY = 'cnncomparator_compare_job_id'
+const RESULT_STORAGE_KEY = 'cnncomparator_compare_result'
+
+function loadStoredResult(): CompareResponse | null {
+  const raw = localStorage.getItem(RESULT_STORAGE_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as CompareResponse
+  } catch {
+    return null
+  }
+}
+
+function isTerminal(status: CompareJobStatus | null): boolean {
+  return status === null || status.status === 'COMPLETED' || status.status === 'FAILED'
+}
 
 const MODEL_LABELS: Record<ModelName, string> = {
   simple_cnn: 'SimpleCNN',
@@ -35,23 +53,87 @@ export function ComparePage() {
   const [learningRate, setLearningRate] = useState(0.001)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<CompareResponse | null>(null)
+  const [jobStatus, setJobStatus] = useState<CompareJobStatus | null>(null)
+  const [result, setResult] = useState<CompareResponse | null>(() => loadStoredResult())
+  const pollIntervalRef = useRef<number | null>(null)
+
+  // Resume tracking a comparison that was already running when this page was last visited,
+  // so leaving "Compare" and coming back still shows the same in-progress/finished comparison.
+  useEffect(() => {
+    const storedJobId = localStorage.getItem(JOB_ID_STORAGE_KEY)
+    if (storedJobId) {
+      setSubmitting(true)
+      trackJob(storedJobId)
+    }
+    return () => stopPolling()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function stopPolling() {
+    if (pollIntervalRef.current !== null) {
+      window.clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }
+
+  async function checkJob(jobId: string): Promise<CompareJobStatus | null> {
+    try {
+      const status = await getCompareJob(jobId)
+      setJobStatus(status)
+
+      if (status.status === 'COMPLETED') {
+        const finalResult = { dataset: status.dataset, epochs: status.epochs, results: status.results }
+        setResult(finalResult)
+        localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(finalResult))
+        setSubmitting(false)
+      } else if (status.status === 'FAILED') {
+        setError(status.error ?? 'Comparison failed. Please try again.')
+        setSubmitting(false)
+      }
+
+      return status
+    } catch (err) {
+      localStorage.removeItem(JOB_ID_STORAGE_KEY)
+      setSubmitting(false)
+
+      // A 404 just means the server no longer knows this job (e.g. it restarted) — keep
+      // showing any cached result instead of scaring the user with an error banner.
+      if (!(err instanceof ApiError && err.status === 404)) {
+        setError(err instanceof ApiError ? err.detail : 'Could not check comparison progress.')
+      }
+      return null
+    }
+  }
+
+  async function trackJob(jobId: string) {
+    localStorage.setItem(JOB_ID_STORAGE_KEY, jobId)
+    const status = await checkJob(jobId)
+
+    if (!isTerminal(status)) {
+      pollIntervalRef.current = window.setInterval(async () => {
+        const latest = await checkJob(jobId)
+        if (isTerminal(latest)) stopPolling()
+      }, POLL_INTERVAL_MS)
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    stopPolling()
     setError(null)
     setSubmitting(true)
     setResult(null)
+    setJobStatus(null)
+    localStorage.removeItem(RESULT_STORAGE_KEY)
 
     try {
-      const response = await compareModels({
+      const { job_id: jobId } = await startCompareJob({
         dataset,
         training: { epochs, batch_size: batchSize, learning_rate: learningRate },
       })
-      setResult(response)
+      await trackJob(jobId)
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : 'Comparison failed. Please try again.')
-    } finally {
       setSubmitting(false)
     }
   }
@@ -131,9 +213,27 @@ export function ComparePage() {
         {error && <p className="form-error">{error}</p>}
 
         <button type="submit" className="btn-primary btn-block" disabled={submitting}>
-          {submitting ? 'Training all 6 models… this can take a while' : 'Run comparison'}
+          {submitting ? 'Training…' : 'Run comparison'}
         </button>
       </form>
+
+      {submitting && (
+        <div className="compare-progress">
+          <div className="compare-progress-bar">
+            <div
+              className="compare-progress-bar-fill"
+              style={{
+                width: `${((jobStatus?.completed_models ?? 0) / (jobStatus?.total_models ?? 6)) * 100}%`,
+              }}
+            />
+          </div>
+          <p className="compare-progress-label">
+            {jobStatus ? `${jobStatus.completed_models} of ${jobStatus.total_models} architectures trained` : 'Starting…'}
+            {jobStatus?.current_model &&
+              ` — currently training ${MODEL_LABELS[jobStatus.current_model] ?? jobStatus.current_model}…`}
+          </p>
+        </div>
+      )}
 
       {result && (
         <div className="compare-results">

@@ -1,6 +1,8 @@
 package com.cnncomparator.experiment;
 
 import com.cnncomparator.dto.CompareExistingRequest;
+import com.cnncomparator.dto.CompareJobStartedResponse;
+import com.cnncomparator.dto.CompareJobStatus;
 import com.cnncomparator.dto.CompareRequest;
 import com.cnncomparator.dto.CompareResponse;
 import com.cnncomparator.dto.ExperimentRequest;
@@ -35,6 +37,7 @@ import java.util.List;
 public class ExperimentController {
 
     private final ExperimentService experimentService;
+    private final CompareJobService compareJobService;
 
     @PostMapping
     public ResponseEntity<ExperimentResponse> createExperiment(@Valid @RequestBody ExperimentRequest request,
@@ -62,6 +65,18 @@ public class ExperimentController {
     @PostMapping("/compare")
     public ResponseEntity<CompareResponse> compareModels(@Valid @RequestBody CompareRequest request) {
         return ResponseEntity.ok(experimentService.compareModels(request));
+    }
+
+    @PostMapping("/compare/jobs")
+    public ResponseEntity<CompareJobStartedResponse> startCompareJob(@Valid @RequestBody CompareRequest request,
+                                                                       Authentication authentication) {
+        String jobId = compareJobService.startJob(request, authentication.getName());
+        return ResponseEntity.accepted().body(new CompareJobStartedResponse(jobId));
+    }
+
+    @GetMapping("/compare/jobs/{jobId}")
+    public ResponseEntity<CompareJobStatus> getCompareJob(@PathVariable String jobId, Authentication authentication) {
+        return ResponseEntity.ok(compareJobService.getStatus(jobId, authentication.getName()));
     }
 
     @PostMapping("/compare-existing")

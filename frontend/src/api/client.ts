@@ -1,6 +1,8 @@
 import type {
   AuthResponse,
   CompareExistingRequest,
+  CompareJobStartedResponse,
+  CompareJobStatus,
   CompareRequest,
   CompareResponse,
   ExperimentRequest,
@@ -90,6 +92,14 @@ export function deleteExperiment(id: number): Promise<void> {
 
 export function compareModels(payload: CompareRequest): Promise<CompareResponse> {
   return request('/experiments/compare', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function startCompareJob(payload: CompareRequest): Promise<CompareJobStartedResponse> {
+  return request('/experiments/compare/jobs', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function getCompareJob(jobId: string): Promise<CompareJobStatus> {
+  return request(`/experiments/compare/jobs/${jobId}`)
 }
 
 export function compareExistingExperiments(payload: CompareExistingRequest): Promise<ExperimentResponse[]> {

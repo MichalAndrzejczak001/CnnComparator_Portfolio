@@ -92,6 +92,24 @@ export interface CompareResponse {
   results: CompareResultItem[]
 }
 
+export interface CompareJobStartedResponse {
+  job_id: string
+}
+
+export type CompareJobState = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+
+export interface CompareJobStatus {
+  job_id: string
+  status: CompareJobState
+  dataset: DatasetName
+  epochs: number
+  total_models: number
+  completed_models: number
+  current_model: ModelName | null
+  results: CompareResultItem[]
+  error: string | null
+}
+
 export interface ClassConfidence {
   label: string
   confidence: number
