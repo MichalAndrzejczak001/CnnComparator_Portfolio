@@ -3,6 +3,7 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 interface LossChartProps {
   trainLoss: number[]
   valLoss: number[]
+  bestEpochIndex?: number | null
   width?: number
   height?: number
 }
@@ -11,13 +12,14 @@ const PADDING = { top: 14, right: 54, bottom: 44, left: 46 }
 const MAX_X_TICKS = 8
 const TRAIN_COLOR = '#3987e5'
 const VAL_COLOR = '#e66767'
+const BEST_EPOCH_COLOR = '#f2c14e'
 const SURFACE = '#171a23'
 const GRIDLINE = '#2a2e3a'
 const AXIS = '#3a3f4e'
 const INK_MUTED = '#6b7280'
 const INK_SECONDARY = '#9ca3af'
 
-export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: LossChartProps) {
+export function LossChart({ trainLoss, valLoss, bestEpochIndex, width = 480, height = 280 }: LossChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
@@ -80,6 +82,10 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
 
   const tooltipLeft = tooltip ? Math.min(Math.max(tooltip.x, 64), width - 64) : 0
 
+  const hasBestEpoch = bestEpochIndex !== null && bestEpochIndex !== undefined
+  const bestEpochX = hasBestEpoch ? xForIndex(bestEpochIndex) : 0
+  const bestEpochLabelX = Math.min(Math.max(bestEpochX, PADDING.left + 26), PADDING.left + innerWidth - 26)
+
   return (
     <div className="chart-block">
       <div className="chart-header">
@@ -93,6 +99,12 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
             <span className="chart-legend-swatch" style={{ background: VAL_COLOR }} />
             Validation
           </li>
+          {hasBestEpoch && (
+            <li className="chart-legend-item">
+              <span className="chart-legend-swatch chart-legend-swatch-dashed" style={{ borderColor: BEST_EPOCH_COLOR }} />
+              Best epoch
+            </li>
+          )}
         </ul>
       </div>
 
@@ -104,7 +116,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="group"
-        aria-label={`Loss per epoch: training and validation loss across ${epochCount} epoch${epochCount === 1 ? '' : 's'}. Use arrow keys to inspect values.`}
+        aria-label={`Loss per epoch: training and validation loss across ${epochCount} epoch${epochCount === 1 ? '' : 's'}${hasBestEpoch ? `. Best epoch by validation loss is epoch ${bestEpochIndex + 1}` : ''}. Use arrow keys to inspect values.`}
       >
         <svg width={width} height={height}>
           {/* gridlines */}
@@ -179,6 +191,31 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
           >
             Epoch
           </text>
+
+          {/* best-epoch marker (lowest validation loss) */}
+          {hasBestEpoch && (
+            <g>
+              <line
+                x1={bestEpochX}
+                y1={PADDING.top}
+                x2={bestEpochX}
+                y2={PADDING.top + innerHeight}
+                stroke={BEST_EPOCH_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                opacity={0.7}
+              />
+              <text
+                x={bestEpochLabelX}
+                y={PADDING.top + 10}
+                fontSize={9}
+                fill={BEST_EPOCH_COLOR}
+                textAnchor="middle"
+              >
+                Best epoch
+              </text>
+            </g>
+          )}
 
           <polyline
             points={toPoints(trainLoss)}

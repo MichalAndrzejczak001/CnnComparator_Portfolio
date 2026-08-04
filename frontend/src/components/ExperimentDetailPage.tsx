@@ -36,6 +36,34 @@ const DATASET_CLASS_LABELS: Record<DatasetName, string[]> = {
 
 type ActiveModal = 'classify' | 'gradcam' | 'draw' | 'augment' | null
 
+type OverfitSeverity = 'low' | 'moderate' | 'high'
+
+const OVERFIT_SEVERITY_LABEL: Record<OverfitSeverity, string> = {
+  low: 'Low',
+  moderate: 'Moderate',
+  high: 'High',
+}
+
+function computeOverfitGap(trainAccuracy: number[], valAccuracy: number[]): number | null {
+  if (trainAccuracy.length === 0 || valAccuracy.length === 0) return null
+  return trainAccuracy[trainAccuracy.length - 1] - valAccuracy[valAccuracy.length - 1]
+}
+
+function overfitSeverity(gap: number): OverfitSeverity {
+  if (gap >= 0.15) return 'high'
+  if (gap >= 0.05) return 'moderate'
+  return 'low'
+}
+
+function computeBestEpoch(valLoss: number[]): number | null {
+  if (valLoss.length === 0) return null
+  let bestIndex = 0
+  for (let index = 1; index < valLoss.length; index++) {
+    if (valLoss[index] < valLoss[bestIndex]) bestIndex = index
+  }
+  return bestIndex
+}
+
 export function ExperimentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -132,6 +160,10 @@ export function ExperimentDetailPage() {
   }
 
   const classLabels = DATASET_CLASS_LABELS[experiment.dataset]
+  const overfitGap = computeOverfitGap(experiment.train_accuracy_per_epoch, experiment.val_accuracy_per_epoch)
+  const overfitSeverityLevel = overfitGap === null ? null : overfitSeverity(overfitGap)
+  const bestEpochIndex = computeBestEpoch(experiment.val_loss_per_epoch)
+  const epochsPastBest = bestEpochIndex === null ? null : experiment.val_loss_per_epoch.length - 1 - bestEpochIndex
 
   return (
     <div className="experiment-detail">
@@ -191,6 +223,30 @@ export function ExperimentDetailPage() {
             <span>Training time</span>
             <strong>{experiment.training_time_seconds.toFixed(1)}s</strong>
           </div>
+          <div className="card">
+            <span>Overfitting gap</span>
+            <strong>
+              {overfitGap === null ? '—' : `${overfitGap >= 0 ? '+' : ''}${(overfitGap * 100).toFixed(1)} pp`}
+            </strong>
+            {overfitSeverityLevel && (
+              <span className={`overfit-badge overfit-badge-${overfitSeverityLevel}`}>
+                {OVERFIT_SEVERITY_LABEL[overfitSeverityLevel]}
+              </span>
+            )}
+          </div>
+          <div className="card">
+            <span>Best epoch (val loss)</span>
+            <strong>
+              {bestEpochIndex === null ? '—' : `${bestEpochIndex + 1} / ${experiment.val_loss_per_epoch.length}`}
+            </strong>
+            {epochsPastBest !== null && (
+              <small>
+                {epochsPastBest === 0
+                  ? 'Still improving at the last epoch'
+                  : `${epochsPastBest} epoch${epochsPastBest === 1 ? '' : 's'} past best`}
+              </small>
+            )}
+          </div>
         </div>
       </div>
 
@@ -223,10 +279,15 @@ export function ExperimentDetailPage() {
       <div className="experiment-summary-section">
         <h2>Training charts</h2>
         <div className="experiment-charts">
-          <LossChart trainLoss={experiment.train_loss_per_epoch} valLoss={experiment.val_loss_per_epoch} />
+          <LossChart
+            trainLoss={experiment.train_loss_per_epoch}
+            valLoss={experiment.val_loss_per_epoch}
+            bestEpochIndex={bestEpochIndex}
+          />
           <AccuracyChart
             trainAccuracy={experiment.train_accuracy_per_epoch}
             valAccuracy={experiment.val_accuracy_per_epoch}
+            bestEpochIndex={bestEpochIndex}
           />
           <ConfusionMatrix matrix={experiment.confusion_matrix} labels={classLabels} />
         </div>
