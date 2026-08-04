@@ -57,7 +57,8 @@ class ExperimentServiceTest {
                 "simple_cnn", "mnist", new TrainingConfig(2, 32, 0.001), "note"
         );
         AiExperimentResult aiResult = new AiExperimentResult(
-                "model-123", List.of(0.9, 0.5), List.of(0.8, 0.4), 0.4, 0.91, 12.3,
+                "model-123", List.of(0.9, 0.5), List.of(0.8, 0.4), List.of(0.6, 0.8), List.of(0.65, 0.91),
+                0.4, 0.91, 12.3,
                 List.of(List.of(5, 0), List.of(1, 4)), List.of()
         );
 

@@ -1,8 +1,8 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 
-interface LossChartProps {
-  trainLoss: number[]
-  valLoss: number[]
+interface AccuracyChartProps {
+  trainAccuracy: number[]
+  valAccuracy: number[]
   width?: number
   height?: number
 }
@@ -17,26 +17,30 @@ const AXIS = '#3a3f4e'
 const INK_MUTED = '#6b7280'
 const INK_SECONDARY = '#9ca3af'
 
-export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: LossChartProps) {
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`
+}
+
+export function AccuracyChart({ trainAccuracy, valAccuracy, width = 480, height = 280 }: AccuracyChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   const innerWidth = width - PADDING.left - PADDING.right
   const innerHeight = height - PADDING.top - PADDING.bottom
 
-  const allValues = [...trainLoss, ...valLoss]
-  const maxLoss = allValues.length > 0 ? Math.max(...allValues) : 1
-  const minLoss = allValues.length > 0 ? Math.min(...allValues) : 0
-  const midLoss = (maxLoss + minLoss) / 2
-  const range = maxLoss - minLoss || 1
-  const epochCount = Math.max(trainLoss.length, valLoss.length, 1)
+  const allValues = [...trainAccuracy, ...valAccuracy]
+  const maxAcc = allValues.length > 0 ? Math.max(...allValues) : 1
+  const minAcc = allValues.length > 0 ? Math.min(...allValues) : 0
+  const midAcc = (maxAcc + minAcc) / 2
+  const range = maxAcc - minAcc || 1
+  const epochCount = Math.max(trainAccuracy.length, valAccuracy.length, 1)
   const lastIndex = epochCount - 1
 
   const xForIndex = (index: number): number =>
     PADDING.left + (index / Math.max(lastIndex, 1)) * innerWidth
 
   const yForValue = (value: number): number =>
-    PADDING.top + innerHeight - ((value - minLoss) / range) * innerHeight
+    PADDING.top + innerHeight - ((value - minAcc) / range) * innerHeight
 
   const toPoints = (series: number[]): string =>
     series.map((value, index) => `${xForIndex(index)},${yForValue(value)}`).join(' ')
@@ -52,8 +56,8 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
       ? null
       : {
           epoch: activeIndex + 1,
-          train: trainLoss[activeIndex],
-          val: valLoss[activeIndex],
+          train: trainAccuracy[activeIndex],
+          val: valAccuracy[activeIndex],
           x: xForIndex(activeIndex),
         }
 
@@ -83,7 +87,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
   return (
     <div className="chart-block">
       <div className="chart-header">
-        <h3 className="chart-title">Loss per epoch</h3>
+        <h3 className="chart-title">Accuracy per epoch</h3>
         <ul className="chart-legend">
           <li className="chart-legend-item">
             <span className="chart-legend-swatch" style={{ background: TRAIN_COLOR }} />
@@ -104,11 +108,11 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="group"
-        aria-label={`Loss per epoch: training and validation loss across ${epochCount} epoch${epochCount === 1 ? '' : 's'}. Use arrow keys to inspect values.`}
+        aria-label={`Accuracy per epoch: training and validation accuracy across ${epochCount} epoch${epochCount === 1 ? '' : 's'}. Use arrow keys to inspect values.`}
       >
         <svg width={width} height={height}>
           {/* gridlines */}
-          {[maxLoss, midLoss, minLoss].map((value) => (
+          {[maxAcc, midAcc, minAcc].map((value) => (
             <line
               key={`grid-${value}`}
               x1={PADDING.left}
@@ -130,7 +134,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
           />
 
           {/* Y axis value ticks */}
-          {[maxLoss, midLoss, minLoss].map((value) => (
+          {[maxAcc, midAcc, minAcc].map((value) => (
             <text
               key={`ytick-${value}`}
               x={PADDING.left - 8}
@@ -139,7 +143,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
               fill={INK_MUTED}
               textAnchor="end"
             >
-              {value.toFixed(2)}
+              {formatPercent(value)}
             </text>
           ))}
 
@@ -152,7 +156,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
             textAnchor="middle"
             transform={`rotate(-90, 12, ${PADDING.top + innerHeight / 2})`}
           >
-            Loss
+            Accuracy
           </text>
 
           {/* X axis epoch ticks */}
@@ -181,7 +185,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
           </text>
 
           <polyline
-            points={toPoints(trainLoss)}
+            points={toPoints(trainAccuracy)}
             fill="none"
             stroke={TRAIN_COLOR}
             strokeWidth={2}
@@ -189,7 +193,7 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
             strokeLinecap="round"
           />
           <polyline
-            points={toPoints(valLoss)}
+            points={toPoints(valAccuracy)}
             fill="none"
             stroke={VAL_COLOR}
             strokeWidth={2}
@@ -198,29 +202,29 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
           />
 
           {/* end markers + direct end labels */}
-          {trainLoss.length > 0 && (
+          {trainAccuracy.length > 0 && (
             <>
-              <circle cx={xForIndex(trainLoss.length - 1)} cy={yForValue(trainLoss[trainLoss.length - 1])} r={4} fill={TRAIN_COLOR} stroke={SURFACE} strokeWidth={2} />
+              <circle cx={xForIndex(trainAccuracy.length - 1)} cy={yForValue(trainAccuracy[trainAccuracy.length - 1])} r={4} fill={TRAIN_COLOR} stroke={SURFACE} strokeWidth={2} />
               <text
-                x={xForIndex(trainLoss.length - 1) + 8}
-                y={yForValue(trainLoss[trainLoss.length - 1]) + 3}
+                x={xForIndex(trainAccuracy.length - 1) + 8}
+                y={yForValue(trainAccuracy[trainAccuracy.length - 1]) + 3}
                 fontSize={10}
                 fill={INK_SECONDARY}
               >
-                {trainLoss[trainLoss.length - 1].toFixed(2)}
+                {formatPercent(trainAccuracy[trainAccuracy.length - 1])}
               </text>
             </>
           )}
-          {valLoss.length > 0 && (
+          {valAccuracy.length > 0 && (
             <>
-              <circle cx={xForIndex(valLoss.length - 1)} cy={yForValue(valLoss[valLoss.length - 1])} r={4} fill={VAL_COLOR} stroke={SURFACE} strokeWidth={2} />
+              <circle cx={xForIndex(valAccuracy.length - 1)} cy={yForValue(valAccuracy[valAccuracy.length - 1])} r={4} fill={VAL_COLOR} stroke={SURFACE} strokeWidth={2} />
               <text
-                x={xForIndex(valLoss.length - 1) + 8}
-                y={yForValue(valLoss[valLoss.length - 1]) + 3}
+                x={xForIndex(valAccuracy.length - 1) + 8}
+                y={yForValue(valAccuracy[valAccuracy.length - 1]) + 3}
                 fontSize={10}
                 fill={INK_SECONDARY}
               >
-                {valLoss[valLoss.length - 1].toFixed(2)}
+                {formatPercent(valAccuracy[valAccuracy.length - 1])}
               </text>
             </>
           )}
@@ -248,32 +252,32 @@ export function LossChart({ trainLoss, valLoss, width = 480, height = 280 }: Los
             <div className="chart-tooltip-row">
               <span className="chart-legend-swatch" style={{ background: TRAIN_COLOR }} />
               <span>Train</span>
-              <strong>{tooltip.train.toFixed(4)}</strong>
+              <strong>{formatPercent(tooltip.train)}</strong>
             </div>
             <div className="chart-tooltip-row">
               <span className="chart-legend-swatch" style={{ background: VAL_COLOR }} />
               <span>Validation</span>
-              <strong>{tooltip.val.toFixed(4)}</strong>
+              <strong>{formatPercent(tooltip.val)}</strong>
             </div>
           </div>
         )}
       </div>
 
       <table className="sr-only">
-        <caption>Loss per epoch (training and validation)</caption>
+        <caption>Accuracy per epoch (training and validation)</caption>
         <thead>
           <tr>
             <th scope="col">Epoch</th>
-            <th scope="col">Train loss</th>
-            <th scope="col">Validation loss</th>
+            <th scope="col">Train accuracy</th>
+            <th scope="col">Validation accuracy</th>
           </tr>
         </thead>
         <tbody>
           {Array.from({ length: epochCount }, (_, index) => (
             <tr key={`row-${index}`}>
               <th scope="row">{index + 1}</th>
-              <td>{trainLoss[index]?.toFixed(4) ?? '—'}</td>
-              <td>{valLoss[index]?.toFixed(4) ?? '—'}</td>
+              <td>{trainAccuracy[index] !== undefined ? formatPercent(trainAccuracy[index]) : '—'}</td>
+              <td>{valAccuracy[index] !== undefined ? formatPercent(valAccuracy[index]) : '—'}</td>
             </tr>
           ))}
         </tbody>

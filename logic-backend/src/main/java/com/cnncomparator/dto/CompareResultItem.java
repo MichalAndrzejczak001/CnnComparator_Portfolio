@@ -10,8 +10,8 @@ public record CompareResultItem(
         @JsonProperty("train_loss_per_epoch")
         List<Double> trainLossPerEpoch,
 
-        @JsonProperty("test_loss_per_epoch")
-        List<Double> testLossPerEpoch,
+        @JsonProperty("val_loss_per_epoch")
+        List<Double> valLossPerEpoch,
 
         @JsonProperty("test_loss")
         double testLoss,

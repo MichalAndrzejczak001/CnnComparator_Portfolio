@@ -43,7 +43,9 @@ export interface ExperimentResponse {
   batch_size: number
   learning_rate: number
   train_loss_per_epoch: number[]
-  test_loss_per_epoch: number[]
+  val_loss_per_epoch: number[]
+  train_accuracy_per_epoch: number[]
+  val_accuracy_per_epoch: number[]
   test_loss: number
   test_accuracy: number
   training_time_seconds: number
@@ -79,7 +81,7 @@ export interface NoteRequest {
 export interface CompareResultItem {
   model: ModelName
   train_loss_per_epoch: number[]
-  test_loss_per_epoch: number[]
+  val_loss_per_epoch: number[]
   test_loss: number
   test_accuracy: number
   training_time_seconds: number

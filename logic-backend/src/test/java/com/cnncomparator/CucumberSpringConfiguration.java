@@ -31,7 +31,8 @@ public class CucumberSpringConfiguration {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
             server.createContext("/experiments", exchange -> writeJson(exchange, "{\"status\":\"ok\","
-                    + "\"model_id\":\"abc-123\",\"train_loss_per_epoch\":[0.9,0.5],\"test_loss_per_epoch\":[0.8,0.4],"
+                    + "\"model_id\":\"abc-123\",\"train_loss_per_epoch\":[0.9,0.5],\"val_loss_per_epoch\":[0.8,0.4],"
+                    + "\"train_accuracy_per_epoch\":[0.6,0.8],\"val_accuracy_per_epoch\":[0.65,0.91],"
                     + "\"test_loss\":0.4,\"test_accuracy\":0.91,\"training_time_seconds\":12.3,"
                     + "\"confusion_matrix\":[[5,0],[1,4]],\"sample_gradcams\":[]}"));
             server.createContext("/compare", exchange ->

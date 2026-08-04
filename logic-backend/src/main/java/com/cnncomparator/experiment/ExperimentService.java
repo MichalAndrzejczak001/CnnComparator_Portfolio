@@ -55,7 +55,9 @@ public class ExperimentService {
                 .batchSize(request.training().batchSize())
                 .learningRate(request.training().learningRate())
                 .trainLossPerEpoch(result.trainLossPerEpoch())
-                .testLossPerEpoch(result.testLossPerEpoch())
+                .valLossPerEpoch(result.valLossPerEpoch())
+                .trainAccuracyPerEpoch(result.trainAccuracyPerEpoch())
+                .valAccuracyPerEpoch(result.valAccuracyPerEpoch())
                 .testLoss(result.testLoss())
                 .testAccuracy(result.testAccuracy())
                 .trainingTimeSeconds(result.trainingTimeSeconds())
@@ -185,7 +187,8 @@ public class ExperimentService {
     private ExperimentResponse toResponse(Experiment e) {
         return new ExperimentResponse(
                 e.getId(), e.getModel(), e.getDataset(), e.getEpochs(), e.getBatchSize(), e.getLearningRate(),
-                e.getTrainLossPerEpoch(), e.getTestLossPerEpoch(), e.getTestLoss(), e.getTestAccuracy(),
+                e.getTrainLossPerEpoch(), e.getValLossPerEpoch(), e.getTrainAccuracyPerEpoch(), e.getValAccuracyPerEpoch(),
+                e.getTestLoss(), e.getTestAccuracy(),
                 e.getTrainingTimeSeconds(), e.getConfusionMatrix(), e.getNote(), e.getModelId(),
                 e.getCreatedAt(), e.getSampleGradcams()
         );

@@ -3,18 +3,22 @@ import torch
 import torch.nn as nn
 
 
-def train(model, train_loader, test_loader, epochs, optimizer, device="cpu"):
+def train(model, train_loader, val_loader, epochs, optimizer, device="cpu"):
     model.to(device)
     criterion = nn.CrossEntropyLoss()
 
     train_losses = []
-    test_losses = []
+    val_losses = []
+    train_accuracies = []
+    val_accuracies = []
 
     start = time.time()
 
     for _ in range(epochs):
         model.train()
         running_loss = 0.0
+        correct = 0
+        total = 0
         for images, labels in train_loader:
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -23,20 +27,28 @@ def train(model, train_loader, test_loader, epochs, optimizer, device="cpu"):
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
+            correct += (outputs.argmax(dim=1) == labels).sum().item()
+            total += labels.size(0)
         train_losses.append(running_loss / len(train_loader))
+        train_accuracies.append(correct / total)
 
         model.eval()
-        epoch_test_loss = 0.0
+        epoch_val_loss = 0.0
+        correct = 0
+        total = 0
         with torch.no_grad():
-            for images, labels in test_loader:
+            for images, labels in val_loader:
                 images, labels = images.to(device), labels.to(device)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
-                epoch_test_loss += loss.item()
-        test_losses.append(epoch_test_loss / len(test_loader))
+                epoch_val_loss += loss.item()
+                correct += (outputs.argmax(dim=1) == labels).sum().item()
+                total += labels.size(0)
+        val_losses.append(epoch_val_loss / len(val_loader))
+        val_accuracies.append(correct / total)
 
     training_time = time.time() - start
-    return train_losses, test_losses, training_time
+    return train_losses, val_losses, train_accuracies, val_accuracies, training_time
 
 
 def evaluate(model, test_loader, num_classes, device="cpu"):

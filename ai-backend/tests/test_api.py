@@ -43,7 +43,9 @@ def test_experiment_response_has_required_fields(mock_deps):
     assert "model_id" in data
     assert "status" in data
     assert "train_loss_per_epoch" in data
-    assert "test_loss_per_epoch" in data
+    assert "val_loss_per_epoch" in data
+    assert "train_accuracy_per_epoch" in data
+    assert "val_accuracy_per_epoch" in data
     assert "test_accuracy" in data
     assert "confusion_matrix" in data
     assert "training_time_seconds" in data

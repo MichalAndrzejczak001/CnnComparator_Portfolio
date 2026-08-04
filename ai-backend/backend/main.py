@@ -213,15 +213,15 @@ def health():
 def run_experiment(config: ExperimentConfig):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
+    train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
         config.dataset, config.training.batch_size
     )
 
     model = create_model(config.model, num_classes, in_channels, input_size)
     optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
-    train_loss, test_loss_per_epoch, training_time = train(
-        model, train_loader, test_loader, config.training.epochs, optimizer, device=device
+    train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
+        model, train_loader, val_loader, config.training.epochs, optimizer, device=device
     )
     metrics = evaluate(model, test_loader, num_classes, device=device)
 
@@ -235,7 +235,9 @@ def run_experiment(config: ExperimentConfig):
         "status": "training and evaluation finished",
         "model_id": model_id,
         "train_loss_per_epoch": train_loss,
-        "test_loss_per_epoch": test_loss_per_epoch,
+        "val_loss_per_epoch": val_loss_per_epoch,
+        "train_accuracy_per_epoch": train_accuracy,
+        "val_accuracy_per_epoch": val_accuracy_per_epoch,
         "test_loss": metrics["loss"],
         "test_accuracy": metrics["accuracy"],
         "training_time_seconds": training_time,
@@ -248,7 +250,7 @@ def run_experiment(config: ExperimentConfig):
 def compare_models(config: CompareConfig):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
+    train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
         config.dataset, config.training.batch_size
     )
 
@@ -257,15 +259,15 @@ def compare_models(config: CompareConfig):
         model = create_model(model_name, num_classes, in_channels, input_size)
         optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
-        train_loss, test_loss_per_epoch, training_time = train(
-            model, train_loader, test_loader, config.training.epochs, optimizer, device=device
+        train_loss, val_loss_per_epoch, _, _, training_time = train(
+            model, train_loader, val_loader, config.training.epochs, optimizer, device=device
         )
         metrics = evaluate(model, test_loader, num_classes, device=device)
 
         results.append({
             "model": model_name,
             "train_loss_per_epoch": train_loss,
-            "test_loss_per_epoch": test_loss_per_epoch,
+            "val_loss_per_epoch": val_loss_per_epoch,
             "test_loss": metrics["loss"],
             "test_accuracy": metrics["accuracy"],
             "training_time_seconds": training_time,

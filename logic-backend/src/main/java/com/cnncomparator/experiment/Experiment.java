@@ -40,7 +40,15 @@ public class Experiment {
 
     @Convert(converter = DoubleListConverter.class)
     @Column(columnDefinition = "TEXT")
-    private List<Double> testLossPerEpoch;
+    private List<Double> valLossPerEpoch;
+
+    @Convert(converter = DoubleListConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private List<Double> trainAccuracyPerEpoch;
+
+    @Convert(converter = DoubleListConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private List<Double> valAccuracyPerEpoch;
 
     private double testLoss;
     private double testAccuracy;

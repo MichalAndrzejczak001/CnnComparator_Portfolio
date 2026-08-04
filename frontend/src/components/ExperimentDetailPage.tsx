@@ -4,6 +4,7 @@ import { ApiError, deleteExperiment, getExperiment, rerunExperiment, updateExper
 import type { DatasetName, ExperimentResponse } from '../types/api'
 import { AugmentModal } from './AugmentModal'
 import { ClassifyImageModal } from './ClassifyImageModal'
+import { AccuracyChart } from './charts/AccuracyChart'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { DrawDigitModal } from './DrawDigitModal'
 import { GradCamModal } from './GradCamModal'
@@ -222,7 +223,11 @@ export function ExperimentDetailPage() {
       <div className="experiment-summary-section">
         <h2>Training charts</h2>
         <div className="experiment-charts">
-          <LossChart trainLoss={experiment.train_loss_per_epoch} testLoss={experiment.test_loss_per_epoch} />
+          <LossChart trainLoss={experiment.train_loss_per_epoch} valLoss={experiment.val_loss_per_epoch} />
+          <AccuracyChart
+            trainAccuracy={experiment.train_accuracy_per_epoch}
+            valAccuracy={experiment.val_accuracy_per_epoch}
+          />
           <ConfusionMatrix matrix={experiment.confusion_matrix} labels={classLabels} />
         </div>
       </div>

@@ -18,10 +18,14 @@ def test_train_returns_correct_lengths():
     optimizer = optim.Adam(model.parameters())
     loader = make_loader()
 
-    train_losses, test_losses, elapsed = train(model, loader, loader, epochs=3, optimizer=optimizer)
+    train_losses, val_losses, train_accs, val_accs, elapsed = train(
+        model, loader, loader, epochs=3, optimizer=optimizer
+    )
 
     assert len(train_losses) == 3
-    assert len(test_losses) == 3
+    assert len(val_losses) == 3
+    assert len(train_accs) == 3
+    assert len(val_accs) == 3
     assert elapsed > 0
 
 
@@ -30,10 +34,21 @@ def test_train_loss_values_are_positive():
     optimizer = optim.Adam(model.parameters())
     loader = make_loader()
 
-    train_losses, test_losses, _ = train(model, loader, loader, epochs=2, optimizer=optimizer)
+    train_losses, val_losses, _, _, _ = train(model, loader, loader, epochs=2, optimizer=optimizer)
 
     assert all(l > 0 for l in train_losses)
-    assert all(l > 0 for l in test_losses)
+    assert all(l > 0 for l in val_losses)
+
+
+def test_train_accuracy_values_are_in_range():
+    model = SimpleCNN(1, 10)
+    optimizer = optim.Adam(model.parameters())
+    loader = make_loader()
+
+    _, _, train_accs, val_accs, _ = train(model, loader, loader, epochs=2, optimizer=optimizer)
+
+    assert all(0.0 <= a <= 1.0 for a in train_accs)
+    assert all(0.0 <= a <= 1.0 for a in val_accs)
 
 
 def test_evaluate_returns_required_keys():
@@ -95,7 +110,7 @@ def test_train_with_batchnorm_model_does_not_crash_on_an_uneven_dataset_size():
     y = torch.randint(0, 10, (11,))
     loader = DataLoader(TensorDataset(x, y), batch_size=2, drop_last=True)
 
-    train_losses, test_losses, _ = train(model, loader, loader, epochs=1, optimizer=optimizer)
+    train_losses, val_losses, _, _, _ = train(model, loader, loader, epochs=1, optimizer=optimizer)
 
     assert len(train_losses) == 1
-    assert len(test_losses) == 1
+    assert len(val_losses) == 1

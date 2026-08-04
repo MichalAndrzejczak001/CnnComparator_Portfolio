@@ -14,8 +14,14 @@ record AiExperimentResult(
         @JsonProperty("train_loss_per_epoch")
         List<Double> trainLossPerEpoch,
 
-        @JsonProperty("test_loss_per_epoch")
-        List<Double> testLossPerEpoch,
+        @JsonProperty("val_loss_per_epoch")
+        List<Double> valLossPerEpoch,
+
+        @JsonProperty("train_accuracy_per_epoch")
+        List<Double> trainAccuracyPerEpoch,
+
+        @JsonProperty("val_accuracy_per_epoch")
+        List<Double> valAccuracyPerEpoch,
 
         @JsonProperty("test_loss")
         double testLoss,

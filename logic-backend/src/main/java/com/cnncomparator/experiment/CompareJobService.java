@@ -80,7 +80,7 @@ public class CompareJobService {
                 job.addResult(new CompareResultItem(
                         modelName,
                         result.trainLossPerEpoch(),
-                        result.testLossPerEpoch(),
+                        result.valLossPerEpoch(),
                         result.testLoss(),
                         result.testAccuracy(),
                         result.trainingTimeSeconds(),
