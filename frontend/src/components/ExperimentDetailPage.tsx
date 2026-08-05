@@ -40,6 +40,30 @@ const DATASET_CLASS_LABELS: Record<DatasetName, string[]> = {
 
 type ActiveModal = 'classify' | 'gradcam' | 'draw' | 'augment' | null
 
+const SECTION_KEYS = [
+  'results',
+  'parameters',
+  'charts',
+  'perClass',
+  'confusedPairs',
+  'calibration',
+  'samplePredictions',
+  'tryItOut',
+] as const
+
+type SectionKey = (typeof SECTION_KEYS)[number]
+
+const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
+  results: true,
+  parameters: true,
+  charts: true,
+  perClass: true,
+  confusedPairs: true,
+  calibration: false,
+  samplePredictions: false,
+  tryItOut: true,
+}
+
 type OverfitSeverity = 'low' | 'moderate' | 'high'
 
 const OVERFIT_SEVERITY_LABEL: Record<OverfitSeverity, string> = {
@@ -88,6 +112,7 @@ export function ExperimentDetailPage() {
   const [editingNote, setEditingNote] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(DEFAULT_OPEN_SECTIONS)
 
   const loadExperiment = useCallback(async () => {
     setError(null)
@@ -149,6 +174,18 @@ export function ExperimentDetailPage() {
       setSavingNote(false)
     }
   }
+
+  function toggleSection(key: SectionKey) {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  function setAllSections(open: boolean) {
+    setOpenSections(
+      SECTION_KEYS.reduce((acc, key) => ({ ...acc, [key]: open }), {} as Record<SectionKey, boolean>),
+    )
+  }
+
+  const allSectionsOpen = SECTION_KEYS.every((key) => openSections[key])
 
   if (notFound) {
     return (
@@ -215,6 +252,9 @@ export function ExperimentDetailPage() {
           )}
         </div>
         <div className="experiment-header-actions">
+          <button type="button" className="btn-outline" onClick={() => setAllSections(!allSectionsOpen)}>
+            {allSectionsOpen ? 'Collapse all' : 'Expand all'}
+          </button>
           <button type="button" className="btn-outline" onClick={handleExport}>
             Export as CSV
           </button>
@@ -229,7 +269,11 @@ export function ExperimentDetailPage() {
 
       {error && <p className="form-error">{error}</p>}
 
-      <CollapsibleSection title="Experiment results">
+      <CollapsibleSection
+        title="Experiment results"
+        open={openSections.results}
+        onToggle={() => toggleSection('results')}
+      >
         <div className="stats-group">
           <h3 className="stats-group-title">Performance</h3>
           <div className="experiment-stats">
@@ -301,7 +345,11 @@ export function ExperimentDetailPage() {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Experiment parameters">
+      <CollapsibleSection
+        title="Experiment parameters"
+        open={openSections.parameters}
+        onToggle={() => toggleSection('parameters')}
+      >
         <div className="experiment-stats">
           <div className="card">
             <span>Model</span>
@@ -326,7 +374,7 @@ export function ExperimentDetailPage() {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Training charts">
+      <CollapsibleSection title="Training charts" open={openSections.charts} onToggle={() => toggleSection('charts')}>
         <div className="experiment-charts">
           <LossChart
             trainLoss={experiment.train_loss_per_epoch}
@@ -342,15 +390,27 @@ export function ExperimentDetailPage() {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Per-class metrics">
+      <CollapsibleSection
+        title="Per-class metrics"
+        open={openSections.perClass}
+        onToggle={() => toggleSection('perClass')}
+      >
         <PerClassMetricsTable matrix={experiment.confusion_matrix} labels={classLabels} />
       </CollapsibleSection>
 
-      <CollapsibleSection title="Most confused pairs">
+      <CollapsibleSection
+        title="Most confused pairs"
+        open={openSections.confusedPairs}
+        onToggle={() => toggleSection('confusedPairs')}
+      >
         <MostConfusedPairs matrix={experiment.confusion_matrix} labels={classLabels} />
       </CollapsibleSection>
 
-      <CollapsibleSection title="Calibration" defaultOpen={false}>
+      <CollapsibleSection
+        title="Calibration"
+        open={openSections.calibration}
+        onToggle={() => toggleSection('calibration')}
+      >
         {experiment.calibration_curve && experiment.calibration_curve.length > 0 ? (
           <CalibrationChart bins={experiment.calibration_curve} />
         ) : (
@@ -362,12 +422,17 @@ export function ExperimentDetailPage() {
       </CollapsibleSection>
 
       {experiment.sample_gradcams.length > 0 && (
-        <CollapsibleSection title="Sample predictions" defaultOpen={false} className="gradcam-gallery">
+        <CollapsibleSection
+          title="Sample predictions"
+          open={openSections.samplePredictions}
+          onToggle={() => toggleSection('samplePredictions')}
+          className="gradcam-gallery"
+        >
           <SamplePredictionsGallery samples={experiment.sample_gradcams} />
         </CollapsibleSection>
       )}
 
-      <CollapsibleSection title="Try it out">
+      <CollapsibleSection title="Try it out" open={openSections.tryItOut} onToggle={() => toggleSection('tryItOut')}>
         <div className="experiment-actions">
           <button type="button" className="btn-primary" onClick={() => setActiveModal('classify')}>
             Classify image
