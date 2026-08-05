@@ -1,5 +1,6 @@
 package com.cnncomparator.experiment;
 
+import com.cnncomparator.dto.CalibrationBin;
 import com.cnncomparator.dto.SampleGradCam;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -36,6 +37,18 @@ record AiExperimentResult(
         List<List<Integer>> confusionMatrix,
 
         @JsonProperty("sample_gradcams")
-        List<SampleGradCam> sampleGradcams
+        List<SampleGradCam> sampleGradcams,
+
+        @JsonProperty("param_count")
+        long paramCount,
+
+        @JsonProperty("inference_latency_ms")
+        double inferenceLatencyMs,
+
+        @JsonProperty("training_throughput_images_per_sec")
+        double trainingThroughputImagesPerSec,
+
+        @JsonProperty("calibration_curve")
+        List<CalibrationBin> calibrationCurve
 ) {
 }

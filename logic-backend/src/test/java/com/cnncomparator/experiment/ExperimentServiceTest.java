@@ -1,5 +1,6 @@
 package com.cnncomparator.experiment;
 
+import com.cnncomparator.dto.CalibrationBin;
 import com.cnncomparator.dto.CompareRequest;
 import com.cnncomparator.dto.CompareResponse;
 import com.cnncomparator.dto.ExperimentRequest;
@@ -59,7 +60,9 @@ class ExperimentServiceTest {
         AiExperimentResult aiResult = new AiExperimentResult(
                 "model-123", List.of(0.9, 0.5), List.of(0.8, 0.4), List.of(0.6, 0.8), List.of(0.65, 0.91),
                 0.4, 0.91, 12.3,
-                List.of(List.of(5, 0), List.of(1, 4)), List.of()
+                List.of(List.of(5, 0), List.of(1, 4)), List.of(),
+                62006L, 3.4, 850.5,
+                List.of(new CalibrationBin(0.9, 1.0, 0.95, 0.91, 15))
         );
 
         when(userRepository.findByUsername("michal")).thenReturn(Optional.of(owner));
@@ -71,6 +74,11 @@ class ExperimentServiceTest {
         assertThat(response.modelId()).isEqualTo("model-123");
         assertThat(response.testAccuracy()).isEqualTo(0.91);
         assertThat(response.model()).isEqualTo("simple_cnn");
+        assertThat(response.paramCount()).isEqualTo(62006L);
+        assertThat(response.inferenceLatencyMs()).isEqualTo(3.4);
+        assertThat(response.trainingThroughputImagesPerSec()).isEqualTo(850.5);
+        assertThat(response.calibrationCurve()).hasSize(1);
+        assertThat(response.calibrationCurve().get(0).accuracy).isEqualTo(0.91);
         verify(experimentRepository).save(any(Experiment.class));
     }
 

@@ -1,8 +1,10 @@
 package com.cnncomparator.experiment;
 
+import com.cnncomparator.config.CalibrationBinListConverter;
 import com.cnncomparator.config.DoubleListConverter;
 import com.cnncomparator.config.IntMatrixConverter;
 import com.cnncomparator.config.SampleGradCamListConverter;
+import com.cnncomparator.dto.CalibrationBin;
 import com.cnncomparator.dto.SampleGradCam;
 import com.cnncomparator.user.User;
 import jakarta.persistence.*;
@@ -68,4 +70,14 @@ public class Experiment {
     @Convert(converter = SampleGradCamListConverter.class)
     @Column(columnDefinition = "MEDIUMTEXT")
     private List<SampleGradCam> sampleGradcams;
+
+    // boxed (not primitive) so adding this column to an existing table doesn't
+    // require backfilling a NOT NULL default for experiments created before this field existed
+    private Long paramCount;
+    private Double inferenceLatencyMs;
+    private Double trainingThroughputImagesPerSec;
+
+    @Convert(converter = CalibrationBinListConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private List<CalibrationBin> calibrationCurve;
 }

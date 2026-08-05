@@ -84,7 +84,11 @@ public class CompareJobService {
                         result.testLoss(),
                         result.testAccuracy(),
                         result.trainingTimeSeconds(),
-                        result.confusionMatrix()
+                        result.confusionMatrix(),
+                        result.paramCount(),
+                        result.inferenceLatencyMs(),
+                        result.trainingThroughputImagesPerSec(),
+                        result.calibrationCurve()
                 ));
             }
 

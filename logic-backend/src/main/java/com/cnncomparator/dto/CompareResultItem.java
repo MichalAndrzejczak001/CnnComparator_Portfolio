@@ -23,6 +23,18 @@ public record CompareResultItem(
         double trainingTimeSeconds,
 
         @JsonProperty("confusion_matrix")
-        List<List<Integer>> confusionMatrix
+        List<List<Integer>> confusionMatrix,
+
+        @JsonProperty("param_count")
+        long paramCount,
+
+        @JsonProperty("inference_latency_ms")
+        double inferenceLatencyMs,
+
+        @JsonProperty("training_throughput_images_per_sec")
+        double trainingThroughputImagesPerSec,
+
+        @JsonProperty("calibration_curve")
+        List<CalibrationBin> calibrationCurve
 ) {
 }

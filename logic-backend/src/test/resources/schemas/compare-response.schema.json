@@ -15,11 +15,30 @@
           "test_loss": { "type": "number" },
           "test_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
           "training_time_seconds": { "type": "number" },
-          "confusion_matrix": { "type": "array" }
+          "confusion_matrix": { "type": "array" },
+          "param_count": { "type": "integer" },
+          "inference_latency_ms": { "type": "number" },
+          "training_throughput_images_per_sec": { "type": "number" },
+          "calibration_curve": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "properties": {
+                "bin_min": { "type": "number" },
+                "bin_max": { "type": "number" },
+                "avg_confidence": { "type": ["number", "null"] },
+                "accuracy": { "type": ["number", "null"] },
+                "count": { "type": "integer" }
+              },
+              "required": ["bin_min", "bin_max", "avg_confidence", "accuracy", "count"],
+              "additionalProperties": false
+            }
+          }
         },
         "required": [
           "model", "train_loss_per_epoch", "val_loss_per_epoch", "test_loss",
-          "test_accuracy", "training_time_seconds", "confusion_matrix"
+          "test_accuracy", "training_time_seconds", "confusion_matrix",
+          "param_count", "inference_latency_ms", "training_throughput_images_per_sec", "calibration_curve"
         ],
         "additionalProperties": false
       }

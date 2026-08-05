@@ -11,6 +11,8 @@ interface Cursor {
   col: number
 }
 
+type DisplayMode = 'count' | 'percent'
+
 const LABEL_WIDTH = 64
 const MARGIN_TOP = 20
 const MARGIN_LEFT = 20
@@ -51,14 +53,29 @@ function textColorFor(t: number): string {
 export function ConfusionMatrix({ matrix, labels, cellSize = 32 }: ConfusionMatrixProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [cursor, setCursor] = useState<Cursor | null>(null)
+  const [mode, setMode] = useState<DisplayMode>('count')
 
   const maxValue = Math.max(1, ...matrix.flat())
+  const rowTotals = matrix.map((row) => row.reduce((sum, value) => sum + value, 0))
   const gridSize = labels.length * cellSize
   const gridOriginX = MARGIN_LEFT + LABEL_WIDTH
   const gridOriginY = MARGIN_TOP + LABEL_WIDTH
   const width = gridOriginX + gridSize + 8
   const height = gridOriginY + gridSize + 8
   const lastIndex = labels.length - 1
+
+  function cellPercent(row: number, col: number): number {
+    const total = rowTotals[row] ?? 0
+    return total > 0 ? ((matrix[row]?.[col] ?? 0) / total) * 100 : 0
+  }
+
+  function cellIntensity(row: number, col: number): number {
+    return mode === 'count' ? (matrix[row]?.[col] ?? 0) / maxValue : cellPercent(row, col) / 100
+  }
+
+  function cellLabel(row: number, col: number): string {
+    return mode === 'count' ? `${matrix[row]?.[col] ?? 0}` : `${cellPercent(row, col).toFixed(0)}%`
+  }
 
   function cellAt(localX: number, localY: number): Cursor | null {
     const col = Math.floor((localX - gridOriginX) / cellSize)
@@ -109,13 +126,31 @@ export function ConfusionMatrix({ matrix, labels, cellSize = 32 }: ConfusionMatr
     <div className="chart-block">
       <div className="chart-header">
         <h3 className="chart-title">Confusion matrix</h3>
-        <div className="matrix-scale" aria-hidden="true">
-          <span className="matrix-scale-label">0</span>
-          <span
-            className="matrix-scale-gradient"
-            style={{ background: `linear-gradient(90deg, ${mixColor(0)}, ${mixColor(1)})` }}
-          />
-          <span className="matrix-scale-label">{maxValue}</span>
+        <div className="matrix-header-controls">
+          <div className="gallery-filter">
+            <button
+              type="button"
+              className={`btn-toggle${mode === 'count' ? ' active' : ''}`}
+              onClick={() => setMode('count')}
+            >
+              Count
+            </button>
+            <button
+              type="button"
+              className={`btn-toggle${mode === 'percent' ? ' active' : ''}`}
+              onClick={() => setMode('percent')}
+            >
+              %
+            </button>
+          </div>
+          <div className="matrix-scale" aria-hidden="true">
+            <span className="matrix-scale-label">0</span>
+            <span
+              className="matrix-scale-gradient"
+              style={{ background: `linear-gradient(90deg, ${mixColor(0)}, ${mixColor(1)})` }}
+            />
+            <span className="matrix-scale-label">{mode === 'count' ? maxValue : '100%'}</span>
+          </div>
         </div>
       </div>
 
@@ -179,8 +214,8 @@ export function ConfusionMatrix({ matrix, labels, cellSize = 32 }: ConfusionMatr
           ))}
 
           {labels.map((_, row) =>
-            matrix[row]?.map((value, col) => {
-              const t = value / maxValue
+            matrix[row]?.map((_, col) => {
+              const t = cellIntensity(row, col)
               const isHovered = cursor?.row === row && cursor?.col === col
               const isDiagonal = row === col
               return (
@@ -213,7 +248,7 @@ export function ConfusionMatrix({ matrix, labels, cellSize = 32 }: ConfusionMatr
                     fill={textColorFor(t)}
                     fontWeight={isDiagonal ? 700 : 400}
                   >
-                    {value}
+                    {cellLabel(row, col)}
                   </text>
                 </g>
               )

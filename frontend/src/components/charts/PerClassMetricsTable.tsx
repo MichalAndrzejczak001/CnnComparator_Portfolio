@@ -5,7 +5,7 @@ interface PerClassMetricsTableProps {
   labels: string[]
 }
 
-interface ClassMetric {
+export interface ClassMetric {
   label: string
   support: number
   precision: number | null
@@ -24,7 +24,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   support: 'desc',
 }
 
-function computeMetrics(matrix: number[][], labels: string[]): ClassMetric[] {
+export function computeMetrics(matrix: number[][], labels: string[]): ClassMetric[] {
   return labels.map((label, cls) => {
     const support = matrix[cls]?.reduce((sum, value) => sum + value, 0) ?? 0
     const truePositive = matrix[cls]?.[cls] ?? 0
@@ -41,7 +41,7 @@ function computeMetrics(matrix: number[][], labels: string[]): ClassMetric[] {
   })
 }
 
-function macroAverage(metrics: ClassMetric[], key: 'precision' | 'recall' | 'f1'): number | null {
+export function macroAverage(metrics: ClassMetric[], key: 'precision' | 'recall' | 'f1'): number | null {
   const values = metrics.map((metric) => metric[key]).filter((value): value is number => value !== null)
   return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : null
 }

@@ -50,6 +50,10 @@ def test_experiment_response_has_required_fields(mock_deps):
     assert "confusion_matrix" in data
     assert "training_time_seconds" in data
     assert "sample_gradcams" in data
+    assert "param_count" in data
+    assert "inference_latency_ms" in data
+    assert "training_throughput_images_per_sec" in data
+    assert "calibration_curve" in data
 
 
 def test_experiment_model_id_is_returned(mock_deps):

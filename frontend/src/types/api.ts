@@ -35,6 +35,14 @@ export interface SampleGradCam {
   gradcam_image: string
 }
 
+export interface CalibrationBin {
+  bin_min: number
+  bin_max: number
+  avg_confidence: number | null
+  accuracy: number | null
+  count: number
+}
+
 export interface ExperimentResponse {
   id: number
   model: ModelName
@@ -54,6 +62,10 @@ export interface ExperimentResponse {
   model_id: string
   created_at: string
   sample_gradcams: SampleGradCam[]
+  param_count: number
+  inference_latency_ms: number
+  training_throughput_images_per_sec: number
+  calibration_curve: CalibrationBin[] | null
 }
 
 export interface ExperimentSummaryResponse {
@@ -86,6 +98,10 @@ export interface CompareResultItem {
   test_accuracy: number
   training_time_seconds: number
   confusion_matrix: number[][]
+  param_count: number
+  inference_latency_ms: number
+  training_throughput_images_per_sec: number
+  calibration_curve: CalibrationBin[] | null
 }
 
 export interface CompareResponse {

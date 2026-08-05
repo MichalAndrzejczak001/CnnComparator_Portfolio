@@ -5,13 +5,16 @@ import type { DatasetName, ExperimentResponse } from '../types/api'
 import { AugmentModal } from './AugmentModal'
 import { ClassifyImageModal } from './ClassifyImageModal'
 import { AccuracyChart } from './charts/AccuracyChart'
+import { CalibrationChart } from './charts/CalibrationChart'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { DrawDigitModal } from './DrawDigitModal'
 import { GradCamModal } from './GradCamModal'
 import { LossChart } from './charts/LossChart'
 import { MostConfusedPairs } from './charts/MostConfusedPairs'
-import { PerClassMetricsTable } from './charts/PerClassMetricsTable'
+import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { SamplePredictionsGallery } from './SamplePredictionsGallery'
+import { downloadCsvText } from '../utils/csv'
+import { buildExperimentCsv } from '../utils/experimentCsvExport'
 
 const MODEL_LABELS: Record<string, string> = {
   simple_cnn: 'SimpleCNN',
@@ -53,6 +56,12 @@ function overfitSeverity(gap: number): OverfitSeverity {
   if (gap >= 0.15) return 'high'
   if (gap >= 0.05) return 'moderate'
   return 'low'
+}
+
+function formatParamCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`
+  return `${count}`
 }
 
 function computeBestEpoch(valLoss: number[]): number | null {
@@ -160,10 +169,18 @@ export function ExperimentDetailPage() {
   }
 
   const classLabels = DATASET_CLASS_LABELS[experiment.dataset]
+  const macroF1 = macroAverage(computeMetrics(experiment.confusion_matrix, classLabels), 'f1')
   const overfitGap = computeOverfitGap(experiment.train_accuracy_per_epoch, experiment.val_accuracy_per_epoch)
   const overfitSeverityLevel = overfitGap === null ? null : overfitSeverity(overfitGap)
   const bestEpochIndex = computeBestEpoch(experiment.val_loss_per_epoch)
   const epochsPastBest = bestEpochIndex === null ? null : experiment.val_loss_per_epoch.length - 1 - bestEpochIndex
+
+  const currentExperiment = experiment
+
+  function handleExport() {
+    const csv = buildExperimentCsv(currentExperiment, classLabels, { macroF1, overfitGap, bestEpochIndex })
+    downloadCsvText(`experiment-${currentExperiment.id}.csv`, csv)
+  }
 
   return (
     <div className="experiment-detail">
@@ -197,6 +214,9 @@ export function ExperimentDetailPage() {
           )}
         </div>
         <div className="experiment-header-actions">
+          <button type="button" className="btn-outline" onClick={handleExport}>
+            Export as CSV
+          </button>
           <button type="button" className="btn-outline" onClick={handleRerun} disabled={rerunning}>
             {rerunning ? 'Rerunning…' : 'Rerun experiment'}
           </button>
@@ -216,12 +236,28 @@ export function ExperimentDetailPage() {
             <strong>{(experiment.test_accuracy * 100).toFixed(2)}%</strong>
           </div>
           <div className="card">
+            <span>Macro F1</span>
+            <strong>{macroF1 === null ? '—' : `${(macroF1 * 100).toFixed(1)}%`}</strong>
+          </div>
+          <div className="card">
             <span>Test loss</span>
             <strong>{experiment.test_loss.toFixed(4)}</strong>
           </div>
           <div className="card">
             <span>Training time</span>
             <strong>{experiment.training_time_seconds.toFixed(1)}s</strong>
+          </div>
+          <div className="card">
+            <span>Parameters</span>
+            <strong>{formatParamCount(experiment.param_count)}</strong>
+          </div>
+          <div className="card">
+            <span>Inference latency</span>
+            <strong>{experiment.inference_latency_ms.toFixed(1)} ms</strong>
+          </div>
+          <div className="card">
+            <span>Training throughput</span>
+            <strong>{experiment.training_throughput_images_per_sec.toFixed(0)} img/s</strong>
           </div>
           <div className="card">
             <span>Overfitting gap</span>
@@ -301,6 +337,18 @@ export function ExperimentDetailPage() {
       <div className="experiment-summary-section">
         <h2>Most confused pairs</h2>
         <MostConfusedPairs matrix={experiment.confusion_matrix} labels={classLabels} />
+      </div>
+
+      <div className="experiment-summary-section">
+        <h2>Calibration</h2>
+        {experiment.calibration_curve && experiment.calibration_curve.length > 0 ? (
+          <CalibrationChart bins={experiment.calibration_curve} />
+        ) : (
+          <p className="text-muted">
+            Calibration data isn't available for this experiment — it was trained before this metric was added.
+            Rerun the experiment to see it.
+          </p>
+        )}
       </div>
 
       <div className="experiment-summary-section">

@@ -4,14 +4,14 @@ interface MostConfusedPairsProps {
   limit?: number
 }
 
-interface ConfusedPair {
+export interface ConfusedPair {
   actual: string
   predicted: string
   count: number
   shareOfActual: number
 }
 
-function computeConfusedPairs(matrix: number[][], labels: string[]): ConfusedPair[] {
+export function computeConfusedPairs(matrix: number[][], labels: string[]): ConfusedPair[] {
   const pairs: ConfusedPair[] = []
 
   for (let row = 0; row < labels.length; row++) {

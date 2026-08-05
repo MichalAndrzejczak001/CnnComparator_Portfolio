@@ -20,7 +20,9 @@ from backend.models.factory import MODEL_NAMES, create_model
 from backend.schemas import (
     ClassConfidence, CompareConfig, ExperimentConfig, GradCamResponse, PredictResponse,
 )
-from backend.training.trainer import evaluate, train
+from backend.training.trainer import (
+    benchmark_inference, compute_training_throughput, count_parameters, evaluate, train,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +226,9 @@ def run_experiment(config: ExperimentConfig):
         model, train_loader, val_loader, config.training.epochs, optimizer, device=device
     )
     metrics = evaluate(model, test_loader, num_classes, device=device)
+    param_count = count_parameters(model)
+    inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
+    training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
     model_id = str(uuid.uuid4())
     torch.save(model.state_dict(), os.path.join(SAVED_MODELS_DIR, f"{model_id}.pth"))
@@ -243,6 +248,10 @@ def run_experiment(config: ExperimentConfig):
         "training_time_seconds": training_time,
         "confusion_matrix": metrics["confusion_matrix"],
         "sample_gradcams": sample_gradcams,
+        "param_count": param_count,
+        "inference_latency_ms": inference_latency_ms,
+        "training_throughput_images_per_sec": training_throughput,
+        "calibration_curve": metrics["calibration_curve"],
     }
 
 
@@ -263,6 +272,9 @@ def compare_models(config: CompareConfig):
             model, train_loader, val_loader, config.training.epochs, optimizer, device=device
         )
         metrics = evaluate(model, test_loader, num_classes, device=device)
+        param_count = count_parameters(model)
+        inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
+        training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
         results.append({
             "model": model_name,
@@ -272,6 +284,10 @@ def compare_models(config: CompareConfig):
             "test_accuracy": metrics["accuracy"],
             "training_time_seconds": training_time,
             "confusion_matrix": metrics["confusion_matrix"],
+            "param_count": param_count,
+            "inference_latency_ms": inference_latency_ms,
+            "training_throughput_images_per_sec": training_throughput,
+            "calibration_curve": metrics["calibration_curve"],
         })
 
     return {

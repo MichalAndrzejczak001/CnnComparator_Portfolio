@@ -22,13 +22,32 @@
     "note": { "type": ["string", "null"] },
     "model_id": { "type": "string" },
     "created_at": { "type": "string" },
-    "sample_gradcams": { "type": "array" }
+    "sample_gradcams": { "type": "array" },
+    "param_count": { "type": "integer" },
+    "inference_latency_ms": { "type": "number" },
+    "training_throughput_images_per_sec": { "type": "number" },
+    "calibration_curve": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "bin_min": { "type": "number" },
+          "bin_max": { "type": "number" },
+          "avg_confidence": { "type": ["number", "null"] },
+          "accuracy": { "type": ["number", "null"] },
+          "count": { "type": "integer" }
+        },
+        "required": ["bin_min", "bin_max", "avg_confidence", "accuracy", "count"],
+        "additionalProperties": false
+      }
+    }
   },
   "required": [
     "id", "model", "dataset", "epochs", "batch_size", "learning_rate",
     "train_loss_per_epoch", "val_loss_per_epoch", "train_accuracy_per_epoch", "val_accuracy_per_epoch",
     "test_loss", "test_accuracy",
-    "training_time_seconds", "confusion_matrix", "note", "model_id", "created_at", "sample_gradcams"
+    "training_time_seconds", "confusion_matrix", "note", "model_id", "created_at", "sample_gradcams",
+    "param_count", "inference_latency_ms", "training_throughput_images_per_sec", "calibration_curve"
   ],
   "additionalProperties": false
 }

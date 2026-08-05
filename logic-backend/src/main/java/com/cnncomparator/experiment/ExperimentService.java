@@ -66,6 +66,10 @@ public class ExperimentService {
                 .modelId(result.modelId())
                 .createdAt(LocalDateTime.now())
                 .sampleGradcams(result.sampleGradcams())
+                .paramCount(result.paramCount())
+                .inferenceLatencyMs(result.inferenceLatencyMs())
+                .trainingThroughputImagesPerSec(result.trainingThroughputImagesPerSec())
+                .calibrationCurve(result.calibrationCurve())
                 .build();
 
         experimentRepository.save(experiment);
@@ -190,7 +194,11 @@ public class ExperimentService {
                 e.getTrainLossPerEpoch(), e.getValLossPerEpoch(), e.getTrainAccuracyPerEpoch(), e.getValAccuracyPerEpoch(),
                 e.getTestLoss(), e.getTestAccuracy(),
                 e.getTrainingTimeSeconds(), e.getConfusionMatrix(), e.getNote(), e.getModelId(),
-                e.getCreatedAt(), e.getSampleGradcams()
+                e.getCreatedAt(), e.getSampleGradcams(),
+                e.getParamCount() != null ? e.getParamCount() : 0L,
+                e.getInferenceLatencyMs() != null ? e.getInferenceLatencyMs() : 0.0,
+                e.getTrainingThroughputImagesPerSec() != null ? e.getTrainingThroughputImagesPerSec() : 0.0,
+                e.getCalibrationCurve()
         );
     }
 

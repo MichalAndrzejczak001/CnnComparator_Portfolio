@@ -13,7 +13,11 @@ export function toCsv(rows: Record<string, unknown>[]): string {
 }
 
 export function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
-  const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8;' })
+  downloadCsvText(filename, toCsv(rows))
+}
+
+export function downloadCsvText(filename: string, content: string): void {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
 
   const link = document.createElement('a')
