@@ -25,6 +25,7 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [showNewExperiment, setShowNewExperiment] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deletingSelected, setDeletingSelected] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const loadExperiments = useCallback(async () => {
@@ -89,6 +90,28 @@ export function DashboardPage() {
     navigate(`/dashboard/compare-selected?ids=${[...selectedIds].join(',')}`)
   }
 
+  async function handleDeleteSelected() {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+
+    setDeletingSelected(true)
+    setError(null)
+
+    const results = await Promise.allSettled(ids.map((id) => deleteExperiment(id)))
+    const failedIds = new Set(ids.filter((_, index) => results[index].status === 'rejected'))
+
+    setExperiments((prev) => prev?.filter((experiment) => !ids.includes(experiment.id) || failedIds.has(experiment.id)) ?? null)
+    setSelectedIds(failedIds)
+
+    if (failedIds.size > 0) {
+      setError(
+        `Could not delete ${failedIds.size} of ${ids.length} selected experiment${ids.length === 1 ? '' : 's'}.`,
+      )
+    }
+
+    setDeletingSelected(false)
+  }
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -119,6 +142,14 @@ export function DashboardPage() {
               disabled={selectedIds.size < 2}
             >
               {`Compare selected (${selectedIds.size})`}
+            </button>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.size === 0 || deletingSelected}
+            >
+              {deletingSelected ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
             </button>
           </div>
 
