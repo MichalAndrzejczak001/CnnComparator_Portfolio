@@ -6,6 +6,7 @@ import { AugmentModal } from './AugmentModal'
 import { ClassifyImageModal } from './ClassifyImageModal'
 import { AccuracyChart } from './charts/AccuracyChart'
 import { CalibrationChart } from './charts/CalibrationChart'
+import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { DrawDigitModal } from './DrawDigitModal'
 import { GradCamModal } from './GradCamModal'
@@ -228,66 +229,79 @@ export function ExperimentDetailPage() {
 
       {error && <p className="form-error">{error}</p>}
 
-      <div className="experiment-summary-section">
-        <h2>Experiment results</h2>
-        <div className="experiment-stats">
-          <div className="card">
-            <span>Test accuracy</span>
-            <strong>{(experiment.test_accuracy * 100).toFixed(2)}%</strong>
-          </div>
-          <div className="card">
-            <span>Macro F1</span>
-            <strong>{macroF1 === null ? '—' : `${(macroF1 * 100).toFixed(1)}%`}</strong>
-          </div>
-          <div className="card">
-            <span>Test loss</span>
-            <strong>{experiment.test_loss.toFixed(4)}</strong>
-          </div>
-          <div className="card">
-            <span>Training time</span>
-            <strong>{experiment.training_time_seconds.toFixed(1)}s</strong>
-          </div>
-          <div className="card">
-            <span>Parameters</span>
-            <strong>{formatParamCount(experiment.param_count)}</strong>
-          </div>
-          <div className="card">
-            <span>Inference latency</span>
-            <strong>{experiment.inference_latency_ms.toFixed(1)} ms</strong>
-          </div>
-          <div className="card">
-            <span>Training throughput</span>
-            <strong>{experiment.training_throughput_images_per_sec.toFixed(0)} img/s</strong>
-          </div>
-          <div className="card">
-            <span>Overfitting gap</span>
-            <strong>
-              {overfitGap === null ? '—' : `${overfitGap >= 0 ? '+' : ''}${(overfitGap * 100).toFixed(1)} pp`}
-            </strong>
-            {overfitSeverityLevel && (
-              <span className={`overfit-badge overfit-badge-${overfitSeverityLevel}`}>
-                {OVERFIT_SEVERITY_LABEL[overfitSeverityLevel]}
-              </span>
-            )}
-          </div>
-          <div className="card">
-            <span>Best epoch (val loss)</span>
-            <strong>
-              {bestEpochIndex === null ? '—' : `${bestEpochIndex + 1} / ${experiment.val_loss_per_epoch.length}`}
-            </strong>
-            {epochsPastBest !== null && (
-              <small>
-                {epochsPastBest === 0
-                  ? 'Still improving at the last epoch'
-                  : `${epochsPastBest} epoch${epochsPastBest === 1 ? '' : 's'} past best`}
-              </small>
-            )}
+      <CollapsibleSection title="Experiment results">
+        <div className="stats-group">
+          <h3 className="stats-group-title">Performance</h3>
+          <div className="experiment-stats">
+            <div className="card">
+              <span>Test accuracy</span>
+              <strong>{(experiment.test_accuracy * 100).toFixed(2)}%</strong>
+            </div>
+            <div className="card">
+              <span>Macro F1</span>
+              <strong>{macroF1 === null ? '—' : `${(macroF1 * 100).toFixed(1)}%`}</strong>
+            </div>
+            <div className="card">
+              <span>Test loss</span>
+              <strong>{experiment.test_loss.toFixed(4)}</strong>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="experiment-summary-section">
-        <h2>Experiment parameters</h2>
+        <div className="stats-group">
+          <h3 className="stats-group-title">Efficiency</h3>
+          <div className="experiment-stats">
+            <div className="card">
+              <span>Training time</span>
+              <strong>{experiment.training_time_seconds.toFixed(1)}s</strong>
+            </div>
+            <div className="card">
+              <span>Parameters</span>
+              <strong>{formatParamCount(experiment.param_count)}</strong>
+            </div>
+            <div className="card">
+              <span>Inference latency</span>
+              <strong>{experiment.inference_latency_ms.toFixed(1)} ms</strong>
+            </div>
+            <div className="card">
+              <span>Training throughput</span>
+              <strong>{experiment.training_throughput_images_per_sec.toFixed(0)} img/s</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="stats-group">
+          <h3 className="stats-group-title">Training diagnostics</h3>
+          <div className="experiment-stats">
+            <div className="card">
+              <span>Overfitting gap</span>
+              <strong>
+                {overfitGap === null ? '—' : `${overfitGap >= 0 ? '+' : ''}${(overfitGap * 100).toFixed(1)} pp`}
+              </strong>
+              {overfitSeverityLevel && (
+                <span className={`overfit-badge overfit-badge-${overfitSeverityLevel}`}>
+                  {OVERFIT_SEVERITY_LABEL[overfitSeverityLevel]}
+                </span>
+              )}
+            </div>
+            <div className="card">
+              <span>Best epoch (val loss)</span>
+              <strong>
+                {bestEpochIndex === null ? '—' : `${bestEpochIndex + 1} / ${experiment.val_loss_per_epoch.length}`}
+              </strong>
+              {epochsPastBest !== null && (
+                <small>
+                  {epochsPastBest === 0
+                    ? 'Still improving at the last epoch'
+                    : `${epochsPastBest} epoch${epochsPastBest === 1 ? '' : 's'} past best`}
+                </small>
+              )}
+            </div>
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Experiment parameters">
         <div className="experiment-stats">
           <div className="card">
             <span>Model</span>
@@ -310,10 +324,9 @@ export function ExperimentDetailPage() {
             <strong>{experiment.learning_rate}</strong>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="experiment-summary-section">
-        <h2>Training charts</h2>
+      <CollapsibleSection title="Training charts">
         <div className="experiment-charts">
           <LossChart
             trainLoss={experiment.train_loss_per_epoch}
@@ -327,20 +340,17 @@ export function ExperimentDetailPage() {
           />
           <ConfusionMatrix matrix={experiment.confusion_matrix} labels={classLabels} />
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="experiment-summary-section">
-        <h2>Per-class metrics</h2>
+      <CollapsibleSection title="Per-class metrics">
         <PerClassMetricsTable matrix={experiment.confusion_matrix} labels={classLabels} />
-      </div>
+      </CollapsibleSection>
 
-      <div className="experiment-summary-section">
-        <h2>Most confused pairs</h2>
+      <CollapsibleSection title="Most confused pairs">
         <MostConfusedPairs matrix={experiment.confusion_matrix} labels={classLabels} />
-      </div>
+      </CollapsibleSection>
 
-      <div className="experiment-summary-section">
-        <h2>Calibration</h2>
+      <CollapsibleSection title="Calibration" defaultOpen={false}>
         {experiment.calibration_curve && experiment.calibration_curve.length > 0 ? (
           <CalibrationChart bins={experiment.calibration_curve} />
         ) : (
@@ -349,10 +359,15 @@ export function ExperimentDetailPage() {
             Rerun the experiment to see it.
           </p>
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className="experiment-summary-section">
-        <h2>Try it out</h2>
+      {experiment.sample_gradcams.length > 0 && (
+        <CollapsibleSection title="Sample predictions" defaultOpen={false} className="gradcam-gallery">
+          <SamplePredictionsGallery samples={experiment.sample_gradcams} />
+        </CollapsibleSection>
+      )}
+
+      <CollapsibleSection title="Try it out">
         <div className="experiment-actions">
           <button type="button" className="btn-primary" onClick={() => setActiveModal('classify')}>
             Classify image
@@ -367,14 +382,7 @@ export function ExperimentDetailPage() {
             Augment image
           </button>
         </div>
-      </div>
-
-      {experiment.sample_gradcams.length > 0 && (
-        <div className="experiment-summary-section gradcam-gallery">
-          <h2>Sample predictions</h2>
-          <SamplePredictionsGallery samples={experiment.sample_gradcams} />
-        </div>
-      )}
+      </CollapsibleSection>
 
       {activeModal === 'classify' && (
         <ClassifyImageModal experimentId={experimentId} onClose={() => setActiveModal(null)} />
