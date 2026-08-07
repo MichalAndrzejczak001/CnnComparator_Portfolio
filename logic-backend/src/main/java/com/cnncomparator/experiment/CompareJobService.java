@@ -81,6 +81,8 @@ public class CompareJobService {
                         modelName,
                         result.trainLossPerEpoch(),
                         result.valLossPerEpoch(),
+                        result.trainAccuracyPerEpoch(),
+                        result.valAccuracyPerEpoch(),
                         result.testLoss(),
                         result.testAccuracy(),
                         result.trainingTimeSeconds(),

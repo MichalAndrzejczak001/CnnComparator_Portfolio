@@ -1,18 +1,47 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getCompareJob, startCompareJob } from '../api/client'
-import type { CompareJobStatus, CompareResponse, DatasetName, ModelName } from '../types/api'
+import type { CompareJobStatus, CompareResponse, CompareResultItem, DatasetName, ModelName } from '../types/api'
 import { AccuracyTimeChart } from './charts/AccuracyTimeChart'
+import { CollapsibleSection } from './CollapsibleSection'
+import { ConfusionMatrix } from './charts/ConfusionMatrix'
+import { MultiLineChart } from './charts/MultiLineChart'
+import { computeMetrics, macroAverage } from './charts/PerClassMetricsTable'
 import { RadarChart } from './charts/RadarChart'
+import { downloadCsvText, toCsvSection } from '../utils/csv'
 
 const POLL_INTERVAL_MS = 5000
 const JOB_ID_STORAGE_KEY = 'cnncomparator_compare_job_id'
-const RESULT_STORAGE_KEY = 'cnncomparator_compare_result'
+// Bumped to v2 because CompareResultItem grew new required fields (param_count,
+// train/val accuracy per epoch, ...) — a result cached under the old key from before
+// that change would be missing them and crash the page on render (see incident where
+// the page rendered blank after this evolved). Bump this again any time
+// CompareResultItem's shape changes, so stale cached results get discarded instead of
+// crashing.
+const RESULT_STORAGE_KEY = 'cnncomparator_compare_result_v2'
+
+// Extra guard on top of the key bump above: even a "v2" entry could be stale if we
+// forget to bump the key next time. Reject anything missing fields the UI now depends
+// on rather than let it throw mid-render.
+function isValidStoredResult(value: unknown): value is CompareResponse {
+  if (!value || typeof value !== 'object') return false
+  const results = (value as { results?: unknown }).results
+  if (!Array.isArray(results)) return false
+  return results.every(
+    (item: Partial<CompareResultItem>) =>
+      Array.isArray(item.train_accuracy_per_epoch) &&
+      Array.isArray(item.val_accuracy_per_epoch) &&
+      typeof item.param_count === 'number' &&
+      typeof item.inference_latency_ms === 'number' &&
+      typeof item.training_throughput_images_per_sec === 'number',
+  )
+}
 
 function loadStoredResult(): CompareResponse | null {
   const raw = localStorage.getItem(RESULT_STORAGE_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as CompareResponse
+    const parsed: unknown = JSON.parse(raw)
+    return isValidStoredResult(parsed) ? parsed : null
   } catch {
     return null
   }
@@ -40,11 +69,138 @@ const MODEL_COLORS: Record<ModelName, string> = {
   mobilenet: '#00bcd4',
 }
 
+const DATASET_LABELS: Record<DatasetName, string> = {
+  mnist: 'MNIST',
+  cifar10: 'CIFAR-10',
+  fashion_mnist: 'Fashion-MNIST',
+}
+
+const DATASET_CLASS_LABELS: Record<DatasetName, string[]> = {
+  mnist: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+  cifar10: ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'],
+  fashion_mnist: ['T-shirt', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot'],
+}
+
 const DATASET_OPTIONS: { value: DatasetName; label: string }[] = [
   { value: 'mnist', label: 'MNIST' },
   { value: 'fashion_mnist', label: 'Fashion-MNIST' },
   { value: 'cifar10', label: 'CIFAR-10' },
 ]
+
+function formatParamCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`
+  return `${count}`
+}
+
+function computeBestEpoch(valLoss: number[]): number | null {
+  if (valLoss.length === 0) return null
+  let bestIndex = 0
+  for (let index = 1; index < valLoss.length; index++) {
+    if (valLoss[index] < valLoss[bestIndex]) bestIndex = index
+  }
+  return bestIndex
+}
+
+function computeOverfitGap(trainAccuracy: number[], valAccuracy: number[]): number | null {
+  if (trainAccuracy.length === 0 || valAccuracy.length === 0) return null
+  return trainAccuracy[trainAccuracy.length - 1] - valAccuracy[valAccuracy.length - 1]
+}
+
+interface Row {
+  item: CompareResultItem
+  color: string
+  macroF1: number | null
+  bestEpochIndex: number | null
+  overfitGap: number | null
+}
+
+type SortKey =
+  | 'model'
+  | 'accuracy'
+  | 'macroF1'
+  | 'testLoss'
+  | 'trainingTime'
+  | 'params'
+  | 'inferenceLatency'
+  | 'throughput'
+  | 'overfitGap'
+  | 'bestEpoch'
+type SortDir = 'asc' | 'desc'
+
+const DEFAULT_DIR: Record<SortKey, SortDir> = {
+  model: 'asc',
+  accuracy: 'desc',
+  macroF1: 'desc',
+  testLoss: 'asc',
+  trainingTime: 'asc',
+  params: 'asc',
+  inferenceLatency: 'asc',
+  throughput: 'desc',
+  overfitGap: 'asc',
+  bestEpoch: 'asc',
+}
+
+const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
+  accuracy: 'higher',
+  macroF1: 'higher',
+  testLoss: 'lower',
+  trainingTime: 'lower',
+  params: 'lower',
+  inferenceLatency: 'lower',
+  throughput: 'higher',
+  overfitGap: 'lower',
+}
+
+function getSortValue(row: Row, key: SortKey): number | string {
+  switch (key) {
+    case 'model':
+      return row.item.model
+    case 'accuracy':
+      return row.item.test_accuracy
+    case 'macroF1':
+      return row.macroF1 ?? -1
+    case 'testLoss':
+      return row.item.test_loss
+    case 'trainingTime':
+      return row.item.training_time_seconds
+    case 'params':
+      return row.item.param_count
+    case 'inferenceLatency':
+      return row.item.inference_latency_ms
+    case 'throughput':
+      return row.item.training_throughput_images_per_sec
+    case 'overfitGap':
+      return row.overfitGap ?? 0
+    case 'bestEpoch':
+      return row.bestEpochIndex ?? -1
+  }
+}
+
+interface BestWorst {
+  bestId: ModelName | null
+  worstId: ModelName | null
+}
+
+function bestWorstIds(rows: Row[], getValue: (row: Row) => number | null, higherIsBetter: boolean): BestWorst {
+  const withValues = rows
+    .map((row) => ({ id: row.item.model, value: getValue(row) }))
+    .filter((entry): entry is { id: ModelName; value: number } => entry.value !== null)
+
+  if (withValues.length < 2) return { bestId: null, worstId: null }
+
+  const sorted = [...withValues].sort((a, b) => (higherIsBetter ? b.value - a.value : a.value - b.value))
+  return { bestId: sorted[0].id, worstId: sorted[sorted.length - 1].id }
+}
+
+const SECTION_KEYS = ['charts', 'results', 'matrices'] as const
+type SectionKey = (typeof SECTION_KEYS)[number]
+
+const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
+  charts: true,
+  results: true,
+  matrices: false,
+}
 
 export function ComparePage() {
   const [dataset, setDataset] = useState<DatasetName>('mnist')
@@ -55,6 +211,9 @@ export function ComparePage() {
   const [submitting, setSubmitting] = useState(false)
   const [jobStatus, setJobStatus] = useState<CompareJobStatus | null>(null)
   const [result, setResult] = useState<CompareResponse | null>(() => loadStoredResult())
+  const [sortKey, setSortKey] = useState<SortKey>('accuracy')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(DEFAULT_OPEN_SECTIONS)
   const pollIntervalRef = useRef<number | null>(null)
 
   // Resume tracking a comparison that was already running when this page was last visited,
@@ -138,28 +297,199 @@ export function ComparePage() {
     }
   }
 
-  const radarSeries =
-    result?.results.map((item) => ({
-      label: MODEL_LABELS[item.model],
+  const rows: Row[] = useMemo(() => {
+    if (!result) return []
+    const classLabels = DATASET_CLASS_LABELS[result.dataset]
+    return result.results.map((item) => ({
+      item,
       color: MODEL_COLORS[item.model],
-      values: [
-        item.test_accuracy,
-        1 / Math.max(item.training_time_seconds, 1),
-        1 / Math.max(item.test_loss, 0.0001),
-      ],
-    })) ?? []
+      macroF1: macroAverage(computeMetrics(item.confusion_matrix, classLabels), 'f1'),
+      bestEpochIndex: computeBestEpoch(item.val_loss_per_epoch),
+      overfitGap: computeOverfitGap(item.train_accuracy_per_epoch, item.val_accuracy_per_epoch),
+    }))
+  }, [result])
 
-  const accuracyTimePoints =
-    result?.results.map((item) => ({
-      label: MODEL_LABELS[item.model],
-      accuracy: item.test_accuracy,
-      trainingTimeSeconds: item.training_time_seconds,
-    })) ?? []
+  const sortedRows = useMemo(() => {
+    const copy = [...rows]
+    copy.sort((a, b) => {
+      const av = getSortValue(a, sortKey)
+      const bv = getSortValue(b, sortKey)
+      const cmp = typeof av === 'string' || typeof bv === 'string' ? String(av).localeCompare(String(bv)) : av - bv
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [rows, sortKey, sortDir])
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(DEFAULT_DIR[key])
+    }
+  }
+
+  function sortIndicator(key: SortKey) {
+    if (key !== sortKey) return null
+    return <span className="metrics-sort-arrow">{sortDir === 'asc' ? '▲' : '▼'}</span>
+  }
+
+  function headerButton(key: SortKey, label: string) {
+    const direction = BETTER_DIRECTION[key]
+    return (
+      <button type="button" className="metrics-sort-button" onClick={() => handleSort(key)}>
+        {label}
+        {direction && (
+          <span className="compare-better-hint" title={direction === 'higher' ? 'Higher is better' : 'Lower is better'}>
+            {direction === 'higher' ? '↑' : '↓'}
+          </span>
+        )}
+        {sortIndicator(key)}
+      </button>
+    )
+  }
+
+  function toggleSection(key: SectionKey) {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  function setAllSections(open: boolean) {
+    setOpenSections(SECTION_KEYS.reduce((acc, key) => ({ ...acc, [key]: open }), {} as Record<SectionKey, boolean>))
+  }
+
+  const allSectionsOpen = SECTION_KEYS.every((key) => openSections[key])
+
+  const accuracyBestWorst = bestWorstIds(rows, (r) => r.item.test_accuracy, true)
+  const macroF1BestWorst = bestWorstIds(rows, (r) => r.macroF1, true)
+  const testLossBestWorst = bestWorstIds(rows, (r) => r.item.test_loss, false)
+  const trainingTimeBestWorst = bestWorstIds(rows, (r) => r.item.training_time_seconds, false)
+  const paramsBestWorst = bestWorstIds(rows, (r) => r.item.param_count, false)
+  const latencyBestWorst = bestWorstIds(rows, (r) => r.item.inference_latency_ms, false)
+  const throughputBestWorst = bestWorstIds(rows, (r) => r.item.training_throughput_images_per_sec, true)
+  const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, false)
+
+  function cellClass(model: ModelName, bw: BestWorst): string {
+    if (model === bw.bestId) return 'compare-cell-best'
+    if (model === bw.worstId) return 'compare-cell-worst'
+    return ''
+  }
+
+  const radarSeries = rows.map((row) => ({
+    label: MODEL_LABELS[row.item.model],
+    color: row.color,
+    values: [
+      row.item.test_accuracy,
+      1 / Math.max(row.item.test_loss, 0.0001),
+      1 / Math.max(row.item.training_time_seconds, 1),
+      1 / Math.max(row.item.inference_latency_ms, 0.01),
+      1 / Math.max(row.item.param_count, 1),
+    ],
+    displayValues: [
+      `${(row.item.test_accuracy * 100).toFixed(2)}%`,
+      row.item.test_loss.toFixed(4),
+      `${row.item.training_time_seconds.toFixed(1)}s`,
+      `${row.item.inference_latency_ms.toFixed(1)} ms`,
+      formatParamCount(row.item.param_count),
+    ],
+  }))
+
+  const accuracyTimePoints = rows.map((row) => ({
+    label: MODEL_LABELS[row.item.model],
+    accuracy: row.item.test_accuracy,
+    trainingTimeSeconds: row.item.training_time_seconds,
+  }))
+
+  const lossSeries = rows.map((row) => ({
+    label: MODEL_LABELS[row.item.model],
+    color: row.color,
+    values: row.item.val_loss_per_epoch,
+  }))
+
+  const accuracySeries = rows.map((row) => ({
+    label: MODEL_LABELS[row.item.model],
+    color: row.color,
+    values: row.item.val_accuracy_per_epoch,
+  }))
+
+  function buildSummaryRows(): Record<string, unknown>[] {
+    return sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex }) => ({
+      Model: MODEL_LABELS[item.model],
+      'Accuracy (%)': (item.test_accuracy * 100).toFixed(2),
+      'Macro F1 (%)': macroF1 !== null ? (macroF1 * 100).toFixed(2) : '',
+      'Test loss': item.test_loss,
+      'Training time (s)': item.training_time_seconds,
+      Parameters: item.param_count,
+      'Inference latency (ms)': item.inference_latency_ms,
+      'Training throughput (img/s)': item.training_throughput_images_per_sec,
+      'Overfitting gap (pp)': overfitGap !== null ? (overfitGap * 100).toFixed(2) : '',
+      'Best epoch': bestEpochIndex !== null ? bestEpochIndex + 1 : '',
+    }))
+  }
+
+  function buildPerEpochRows(key: 'val_loss_per_epoch' | 'val_accuracy_per_epoch', isPercent: boolean): Record<string, unknown>[] {
+    const epochCount = Math.max(0, ...sortedRows.map((row) => row.item[key].length))
+    return Array.from({ length: epochCount }, (_, index) => {
+      const record: Record<string, unknown> = { Epoch: index + 1 }
+      sortedRows.forEach((row) => {
+        const value = row.item[key][index]
+        record[MODEL_LABELS[row.item.model]] = value === undefined ? '' : isPercent ? (value * 100).toFixed(2) : value
+      })
+      return record
+    })
+  }
+
+  function buildConfusionMatrixRows(matrix: number[][], labels: string[]): Record<string, unknown>[] {
+    return labels.map((actualLabel, rowIndex) => {
+      const record: Record<string, unknown> = { 'Actual class': actualLabel }
+      labels.forEach((predictedLabel, col) => {
+        record[`Predicted: ${predictedLabel}`] = matrix[rowIndex]?.[col] ?? 0
+      })
+      return record
+    })
+  }
+
+  function buildPerClassRows(matrix: number[][], labels: string[]): Record<string, unknown>[] {
+    return computeMetrics(matrix, labels).map((metric) => ({
+      Class: metric.label,
+      'Precision (%)': metric.precision !== null ? (metric.precision * 100).toFixed(2) : '',
+      'Recall (%)': metric.recall !== null ? (metric.recall * 100).toFixed(2) : '',
+      'F1 (%)': metric.f1 !== null ? (metric.f1 * 100).toFixed(2) : '',
+      Support: metric.support,
+    }))
+  }
+
+  function handleExportCsv() {
+    if (!result) return
+    const classLabels = DATASET_CLASS_LABELS[result.dataset]
+
+    const sections = [
+      toCsvSection('Summary', buildSummaryRows()),
+      toCsvSection('Validation loss per epoch', buildPerEpochRows('val_loss_per_epoch', false)),
+      toCsvSection('Validation accuracy per epoch', buildPerEpochRows('val_accuracy_per_epoch', true)),
+    ]
+
+    sortedRows.forEach(({ item }) => {
+      const label = MODEL_LABELS[item.model]
+      sections.push(toCsvSection(`Confusion matrix — ${label}`, buildConfusionMatrixRows(item.confusion_matrix, classLabels)))
+      sections.push(toCsvSection(`Per-class metrics — ${label}`, buildPerClassRows(item.confusion_matrix, classLabels)))
+    })
+
+    downloadCsvText(`compare-architectures-${result.dataset}.csv`, sections.join('\n\n'))
+  }
 
   return (
     <div className="compare-page">
-      <h1>Compare architectures</h1>
-      <p>Train all six CNN architectures on the same dataset and rank them by accuracy, loss and training time.</p>
+      <div className="dashboard-header">
+        <div>
+          <h1>Compare architectures</h1>
+          <p>Train all six CNN architectures on the same dataset and rank them by accuracy, loss and training time.</p>
+        </div>
+        {rows.length > 0 && (
+          <button type="button" className="btn-outline" onClick={() => setAllSections(!allSectionsOpen)}>
+            {allSectionsOpen ? 'Collapse all' : 'Expand all'}
+          </button>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="compare-form">
         <label className="form-field">
@@ -235,33 +565,96 @@ export function ComparePage() {
         </div>
       )}
 
-      {result && (
+      {result && rows.length > 0 && (
         <div className="compare-results">
-          <div className="compare-charts">
-            <RadarChart axes={['Accuracy', 'Speed', 'Low loss']} series={radarSeries} />
-            <AccuracyTimeChart points={accuracyTimePoints} />
-          </div>
+          <CollapsibleSection title="Comparison charts" open={openSections.charts} onToggle={() => toggleSection('charts')}>
+            <div className="compare-charts">
+              <RadarChart
+                axes={['Accuracy', 'Low loss', 'Training speed', 'Inference speed', 'Compact']}
+                series={radarSeries}
+              />
+              <AccuracyTimeChart points={accuracyTimePoints} />
+              <MultiLineChart title="Validation loss" yLabel="Loss" series={lossSeries} formatValue={(v) => v.toFixed(3)} />
+              <MultiLineChart
+                title="Validation accuracy"
+                yLabel="Accuracy"
+                series={accuracySeries}
+                formatValue={(v) => `${(v * 100).toFixed(1)}%`}
+              />
+            </div>
+          </CollapsibleSection>
 
-          <table className="compare-table">
-            <thead>
-              <tr>
-                <th>Model</th>
-                <th>Accuracy</th>
-                <th>Test loss</th>
-                <th>Training time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.results.map((item) => (
-                <tr key={item.model}>
-                  <td>{MODEL_LABELS[item.model]}</td>
-                  <td>{(item.test_accuracy * 100).toFixed(2)}%</td>
-                  <td>{item.test_loss.toFixed(4)}</td>
-                  <td>{item.training_time_seconds.toFixed(1)}s</td>
+          <CollapsibleSection title="Results" open={openSections.results} onToggle={() => toggleSection('results')}>
+            <div className="compare-selected-toolbar">
+              <button type="button" className="btn-outline" onClick={handleExportCsv}>
+                Export as CSV
+              </button>
+            </div>
+
+            <table className="compare-selected-table">
+              <thead>
+                <tr>
+                  <th>{headerButton('model', 'Model')}</th>
+                  <th>{headerButton('accuracy', 'Accuracy')}</th>
+                  <th>{headerButton('macroF1', 'Macro F1')}</th>
+                  <th>{headerButton('testLoss', 'Test loss')}</th>
+                  <th>{headerButton('trainingTime', 'Training time')}</th>
+                  <th>{headerButton('params', 'Parameters')}</th>
+                  <th>{headerButton('inferenceLatency', 'Inference latency')}</th>
+                  <th>{headerButton('throughput', 'Throughput')}</th>
+                  <th>{headerButton('overfitGap', 'Overfitting gap')}</th>
+                  <th>{headerButton('bestEpoch', 'Best epoch')}</th>
                 </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex }) => (
+                  <tr key={item.model}>
+                    <td>{MODEL_LABELS[item.model]}</td>
+                    <td className={cellClass(item.model, accuracyBestWorst)}>{(item.test_accuracy * 100).toFixed(2)}%</td>
+                    <td className={cellClass(item.model, macroF1BestWorst)}>
+                      {macroF1 === null ? '—' : `${(macroF1 * 100).toFixed(1)}%`}
+                    </td>
+                    <td className={cellClass(item.model, testLossBestWorst)}>{item.test_loss.toFixed(4)}</td>
+                    <td className={cellClass(item.model, trainingTimeBestWorst)}>{item.training_time_seconds.toFixed(1)}s</td>
+                    <td className={cellClass(item.model, paramsBestWorst)}>{formatParamCount(item.param_count)}</td>
+                    <td className={cellClass(item.model, latencyBestWorst)}>{item.inference_latency_ms.toFixed(1)} ms</td>
+                    <td className={cellClass(item.model, throughputBestWorst)}>
+                      {item.training_throughput_images_per_sec.toFixed(0)} img/s
+                    </td>
+                    <td className={cellClass(item.model, overfitBestWorst)}>
+                      {overfitGap === null ? '—' : `${overfitGap >= 0 ? '+' : ''}${(overfitGap * 100).toFixed(1)} pp`}
+                    </td>
+                    <td>
+                      {bestEpochIndex === null ? '—' : `${bestEpochIndex + 1} / ${item.val_loss_per_epoch.length}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Confusion matrices"
+            open={openSections.matrices}
+            onToggle={() => toggleSection('matrices')}
+          >
+            <p className="text-muted">All six models were trained on {DATASET_LABELS[result.dataset]}.</p>
+            <div className="compare-matrix-row">
+              {rows.map((row) => (
+                <div key={row.item.model} className="compare-matrix-item">
+                  <span className="compare-matrix-item-label">
+                    <span className="chart-legend-swatch" style={{ background: row.color }} />
+                    {MODEL_LABELS[row.item.model]}
+                  </span>
+                  <ConfusionMatrix
+                    matrix={row.item.confusion_matrix}
+                    labels={DATASET_CLASS_LABELS[result.dataset]}
+                    cellSize={20}
+                  />
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </CollapsibleSection>
         </div>
       )}
     </div>

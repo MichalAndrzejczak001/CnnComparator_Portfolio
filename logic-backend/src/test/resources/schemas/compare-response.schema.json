@@ -12,6 +12,8 @@
           "model": { "type": "string" },
           "train_loss_per_epoch": { "type": "array" },
           "val_loss_per_epoch": { "type": "array" },
+          "train_accuracy_per_epoch": { "type": "array" },
+          "val_accuracy_per_epoch": { "type": "array" },
           "test_loss": { "type": "number" },
           "test_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
           "training_time_seconds": { "type": "number" },
@@ -36,7 +38,8 @@
           }
         },
         "required": [
-          "model", "train_loss_per_epoch", "val_loss_per_epoch", "test_loss",
+          "model", "train_loss_per_epoch", "val_loss_per_epoch",
+          "train_accuracy_per_epoch", "val_accuracy_per_epoch", "test_loss",
           "test_accuracy", "training_time_seconds", "confusion_matrix",
           "param_count", "inference_latency_ms", "training_throughput_images_per_sec", "calibration_curve"
         ],

@@ -76,6 +76,16 @@ def test_compare_response_contains_6_results(mock_deps):
     assert len(data["results"]) == 6
 
 
+def test_compare_result_includes_accuracy_per_epoch(mock_deps):
+    response = client.post("/compare", json={
+        "dataset": "mnist",
+        "training": {"epochs": 1, "batch_size": 32, "learning_rate": 0.001},
+    })
+    first_result = response.json()["results"][0]
+    assert "train_accuracy_per_epoch" in first_result
+    assert "val_accuracy_per_epoch" in first_result
+
+
 def test_compare_result_model_names(mock_deps):
     response = client.post("/compare", json={
         "dataset": "cifar10",

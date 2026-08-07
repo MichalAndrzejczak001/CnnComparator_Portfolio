@@ -268,7 +268,7 @@ def compare_models(config: CompareConfig):
         model = create_model(model_name, num_classes, in_channels, input_size)
         optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
-        train_loss, val_loss_per_epoch, _, _, training_time = train(
+        train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
             model, train_loader, val_loader, config.training.epochs, optimizer, device=device
         )
         metrics = evaluate(model, test_loader, num_classes, device=device)
@@ -280,6 +280,8 @@ def compare_models(config: CompareConfig):
             "model": model_name,
             "train_loss_per_epoch": train_loss,
             "val_loss_per_epoch": val_loss_per_epoch,
+            "train_accuracy_per_epoch": train_accuracy,
+            "val_accuracy_per_epoch": val_accuracy_per_epoch,
             "test_loss": metrics["loss"],
             "test_accuracy": metrics["accuracy"],
             "training_time_seconds": training_time,
