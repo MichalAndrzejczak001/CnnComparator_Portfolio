@@ -527,14 +527,16 @@ input[type='file'] {
   flex-shrink: 0;
 }
 
-.compare-selected-results {
-  margin-top: var(--space-4);
+.compare-selected-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .compare-selected-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: var(--space-3);
+  white-space: nowrap;
 }
 
 .compare-selected-table th,
@@ -548,6 +550,51 @@ input[type='file'] {
   color: var(--text-dim);
   font-size: 13px;
   font-weight: 600;
+  padding: 0;
+}
+
+.compare-cell-best {
+  color: #0ca30c;
+  font-weight: 700;
+}
+
+.compare-cell-worst {
+  color: #e66767;
+}
+
+.compare-better-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: help;
+}
+
+.compare-note-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-matrix-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  overflow-x: auto;
+  margin-top: var(--space-2);
+}
+
+.compare-matrix-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.compare-matrix-item-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
 }
 
 .experiment-card-link {
@@ -699,6 +746,7 @@ input[type='file'] {
 
 .section-body {
   margin-top: var(--space-3);
+  overflow-x: auto;
 }
 
 .stats-group {
@@ -874,9 +922,11 @@ input[type='file'] {
 
 .chart-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .chart-title {
@@ -888,8 +938,10 @@ input[type='file'] {
 
 .chart-legend {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1373,10 +1425,6 @@ input[type='file'] {
   margin-bottom: var(--space-4);
 }
 
-.compare-selected-page .compare-selected-results {
-  margin-top: 0;
-}
-
 .compare-page > p {
   color: var(--text-dim);
   margin-top: 0;
@@ -1429,7 +1477,9 @@ input[type='file'] {
 .compare-charts {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
 .compare-charts svg {

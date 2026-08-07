@@ -1,7 +1,7 @@
 import { computeConfusedPairs } from '../components/charts/MostConfusedPairs'
 import { computeMetrics } from '../components/charts/PerClassMetricsTable'
 import type { ExperimentResponse } from '../types/api'
-import { toCsv } from './csv'
+import { toCsvSection } from './csv'
 
 interface SummaryExtras {
   macroF1: number | null
@@ -11,10 +11,6 @@ interface SummaryExtras {
 
 function formatPercent(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : (value * 100).toFixed(2)
-}
-
-function toCsvSection(title: string, rows: Record<string, unknown>[]): string {
-  return rows.length === 0 ? `${title}\n(no data)` : `${title}\n${toCsv(rows)}`
 }
 
 function buildSummaryRows(experiment: ExperimentResponse, extras: SummaryExtras): Record<string, unknown>[] {

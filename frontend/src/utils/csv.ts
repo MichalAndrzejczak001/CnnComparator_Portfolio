@@ -12,6 +12,10 @@ export function toCsv(rows: Record<string, unknown>[]): string {
   return lines.join('\n')
 }
 
+export function toCsvSection(title: string, rows: Record<string, unknown>[]): string {
+  return rows.length === 0 ? `${title}\n(no data)` : `${title}\n${toCsv(rows)}`
+}
+
 export function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
   downloadCsvText(filename, toCsv(rows))
 }
