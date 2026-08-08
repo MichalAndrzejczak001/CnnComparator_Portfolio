@@ -5,8 +5,15 @@ import { AccuracyTimeChart } from './charts/AccuracyTimeChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { MultiLineChart } from './charts/MultiLineChart'
-import { computeMetrics, macroAverage } from './charts/PerClassMetricsTable'
+import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { RadarChart } from './charts/RadarChart'
+import {
+  bestWorstIds,
+  computeBestEpoch,
+  computeOverfitGap,
+  formatParamCount,
+  type BestWorst,
+} from '../utils/comparisonMetrics'
 import { downloadCsvText, toCsvSection } from '../utils/csv'
 
 const POLL_INTERVAL_MS = 5000
@@ -87,26 +94,6 @@ const DATASET_OPTIONS: { value: DatasetName; label: string }[] = [
   { value: 'cifar10', label: 'CIFAR-10' },
 ]
 
-function formatParamCount(count: number): string {
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
-  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`
-  return `${count}`
-}
-
-function computeBestEpoch(valLoss: number[]): number | null {
-  if (valLoss.length === 0) return null
-  let bestIndex = 0
-  for (let index = 1; index < valLoss.length; index++) {
-    if (valLoss[index] < valLoss[bestIndex]) bestIndex = index
-  }
-  return bestIndex
-}
-
-function computeOverfitGap(trainAccuracy: number[], valAccuracy: number[]): number | null {
-  if (trainAccuracy.length === 0 || valAccuracy.length === 0) return null
-  return trainAccuracy[trainAccuracy.length - 1] - valAccuracy[valAccuracy.length - 1]
-}
-
 interface Row {
   item: CompareResultItem
   color: string
@@ -177,29 +164,14 @@ function getSortValue(row: Row, key: SortKey): number | string {
   }
 }
 
-interface BestWorst {
-  bestId: ModelName | null
-  worstId: ModelName | null
-}
-
-function bestWorstIds(rows: Row[], getValue: (row: Row) => number | null, higherIsBetter: boolean): BestWorst {
-  const withValues = rows
-    .map((row) => ({ id: row.item.model, value: getValue(row) }))
-    .filter((entry): entry is { id: ModelName; value: number } => entry.value !== null)
-
-  if (withValues.length < 2) return { bestId: null, worstId: null }
-
-  const sorted = [...withValues].sort((a, b) => (higherIsBetter ? b.value - a.value : a.value - b.value))
-  return { bestId: sorted[0].id, worstId: sorted[sorted.length - 1].id }
-}
-
-const SECTION_KEYS = ['charts', 'results', 'matrices'] as const
+const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass'] as const
 type SectionKey = (typeof SECTION_KEYS)[number]
 
 const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
   charts: true,
   results: true,
   matrices: false,
+  perClass: false,
 }
 
 export function ComparePage() {
@@ -359,16 +331,17 @@ export function ComparePage() {
 
   const allSectionsOpen = SECTION_KEYS.every((key) => openSections[key])
 
-  const accuracyBestWorst = bestWorstIds(rows, (r) => r.item.test_accuracy, true)
-  const macroF1BestWorst = bestWorstIds(rows, (r) => r.macroF1, true)
-  const testLossBestWorst = bestWorstIds(rows, (r) => r.item.test_loss, false)
-  const trainingTimeBestWorst = bestWorstIds(rows, (r) => r.item.training_time_seconds, false)
-  const paramsBestWorst = bestWorstIds(rows, (r) => r.item.param_count, false)
-  const latencyBestWorst = bestWorstIds(rows, (r) => r.item.inference_latency_ms, false)
-  const throughputBestWorst = bestWorstIds(rows, (r) => r.item.training_throughput_images_per_sec, true)
-  const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, false)
+  const getRowId = (r: Row) => r.item.model
+  const accuracyBestWorst = bestWorstIds(rows, (r) => r.item.test_accuracy, getRowId, true)
+  const macroF1BestWorst = bestWorstIds(rows, (r) => r.macroF1, getRowId, true)
+  const testLossBestWorst = bestWorstIds(rows, (r) => r.item.test_loss, getRowId, false)
+  const trainingTimeBestWorst = bestWorstIds(rows, (r) => r.item.training_time_seconds, getRowId, false)
+  const paramsBestWorst = bestWorstIds(rows, (r) => r.item.param_count, getRowId, false)
+  const latencyBestWorst = bestWorstIds(rows, (r) => r.item.inference_latency_ms, getRowId, false)
+  const throughputBestWorst = bestWorstIds(rows, (r) => r.item.training_throughput_images_per_sec, getRowId, true)
+  const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, getRowId, false)
 
-  function cellClass(model: ModelName, bw: BestWorst): string {
+  function cellClass(model: ModelName, bw: BestWorst<ModelName>): string {
     if (model === bw.bestId) return 'compare-cell-best'
     if (model === bw.worstId) return 'compare-cell-worst'
     return ''
@@ -395,6 +368,7 @@ export function ComparePage() {
 
   const accuracyTimePoints = rows.map((row) => ({
     label: MODEL_LABELS[row.item.model],
+    color: row.color,
     accuracy: row.item.test_accuracy,
     trainingTimeSeconds: row.item.training_time_seconds,
   }))
@@ -485,9 +459,14 @@ export function ComparePage() {
           <p>Train all six CNN architectures on the same dataset and rank them by accuracy, loss and training time.</p>
         </div>
         {rows.length > 0 && (
-          <button type="button" className="btn-outline" onClick={() => setAllSections(!allSectionsOpen)}>
-            {allSectionsOpen ? 'Collapse all' : 'Expand all'}
-          </button>
+          <div className="experiment-header-actions">
+            <button type="button" className="btn-outline" onClick={handleExportCsv}>
+              Export as CSV
+            </button>
+            <button type="button" className="btn-outline" onClick={() => setAllSections(!allSectionsOpen)}>
+              {allSectionsOpen ? 'Collapse all' : 'Expand all'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -567,6 +546,10 @@ export function ComparePage() {
 
       {result && rows.length > 0 && (
         <div className="compare-results">
+          <p className="text-muted">
+            Results for {DATASET_LABELS[result.dataset]}, {result.epochs} epoch{result.epochs === 1 ? '' : 's'}.
+          </p>
+
           <CollapsibleSection title="Comparison charts" open={openSections.charts} onToggle={() => toggleSection('charts')}>
             <div className="compare-charts">
               <RadarChart
@@ -585,12 +568,6 @@ export function ComparePage() {
           </CollapsibleSection>
 
           <CollapsibleSection title="Results" open={openSections.results} onToggle={() => toggleSection('results')}>
-            <div className="compare-selected-toolbar">
-              <button type="button" className="btn-outline" onClick={handleExportCsv}>
-                Export as CSV
-              </button>
-            </div>
-
             <table className="compare-selected-table">
               <thead>
                 <tr>
@@ -638,7 +615,6 @@ export function ComparePage() {
             open={openSections.matrices}
             onToggle={() => toggleSection('matrices')}
           >
-            <p className="text-muted">All six models were trained on {DATASET_LABELS[result.dataset]}.</p>
             <div className="compare-matrix-row">
               {rows.map((row) => (
                 <div key={row.item.model} className="compare-matrix-item">
@@ -650,6 +626,27 @@ export function ComparePage() {
                     matrix={row.item.confusion_matrix}
                     labels={DATASET_CLASS_LABELS[result.dataset]}
                     cellSize={20}
+                  />
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Per-class metrics"
+            open={openSections.perClass}
+            onToggle={() => toggleSection('perClass')}
+          >
+            <div className="compare-matrix-row">
+              {rows.map((row) => (
+                <div key={row.item.model} className="compare-matrix-item">
+                  <span className="compare-matrix-item-label">
+                    <span className="chart-legend-swatch" style={{ background: row.color }} />
+                    {MODEL_LABELS[row.item.model]}
+                  </span>
+                  <PerClassMetricsTable
+                    matrix={row.item.confusion_matrix}
+                    labels={DATASET_CLASS_LABELS[result.dataset]}
                   />
                 </div>
               ))}

@@ -527,11 +527,6 @@ input[type='file'] {
   flex-shrink: 0;
 }
 
-.compare-selected-toolbar {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .compare-selected-table {
   width: 100%;
   border-collapse: collapse;

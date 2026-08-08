@@ -14,6 +14,7 @@ import { LossChart } from './charts/LossChart'
 import { MostConfusedPairs } from './charts/MostConfusedPairs'
 import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { SamplePredictionsGallery } from './SamplePredictionsGallery'
+import { computeBestEpoch, computeOverfitGap, formatParamCount } from '../utils/comparisonMetrics'
 import { downloadCsvText } from '../utils/csv'
 import { buildExperimentCsv } from '../utils/experimentCsvExport'
 
@@ -72,30 +73,10 @@ const OVERFIT_SEVERITY_LABEL: Record<OverfitSeverity, string> = {
   high: 'High',
 }
 
-function computeOverfitGap(trainAccuracy: number[], valAccuracy: number[]): number | null {
-  if (trainAccuracy.length === 0 || valAccuracy.length === 0) return null
-  return trainAccuracy[trainAccuracy.length - 1] - valAccuracy[valAccuracy.length - 1]
-}
-
 function overfitSeverity(gap: number): OverfitSeverity {
   if (gap >= 0.15) return 'high'
   if (gap >= 0.05) return 'moderate'
   return 'low'
-}
-
-function formatParamCount(count: number): string {
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
-  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`
-  return `${count}`
-}
-
-function computeBestEpoch(valLoss: number[]): number | null {
-  if (valLoss.length === 0) return null
-  let bestIndex = 0
-  for (let index = 1; index < valLoss.length; index++) {
-    if (valLoss[index] < valLoss[bestIndex]) bestIndex = index
-  }
-  return bestIndex
 }
 
 export function ExperimentDetailPage() {
