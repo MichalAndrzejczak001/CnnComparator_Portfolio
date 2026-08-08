@@ -1,5 +1,6 @@
 package com.cnncomparator.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -10,11 +11,13 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -56,8 +59,15 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed or incomplete request");
     }
 
+    @ExceptionHandler(RestClientException.class)
+    public ProblemDetail handleAiBackendFailure(RestClientException ex) {
+        log.warn("Call to ai-backend failed", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "The AI backend is unavailable or the request failed");
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneric(Exception ex) {
+        log.error("Unhandled exception", ex);
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error occurred");
     }
 }
