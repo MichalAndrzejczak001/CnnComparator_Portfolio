@@ -9,6 +9,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  flyway:
+    # Tests run against H2 with Hibernate generating the schema straight from the entities;
+    # Flyway's MySQL-specific migrations are only meant for the real datasource.
+    enabled: false
 
 ai-backend:
   url: http://localhost:9999

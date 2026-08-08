@@ -2,6 +2,7 @@ package com.cnncomparator.experiment;
 
 import com.cnncomparator.dto.CompareResultItem;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -20,6 +21,10 @@ class CompareJob {
     private volatile Status status = Status.PENDING;
     private volatile String currentModel;
     private volatile String error;
+
+    // Set once the job reaches a terminal status, so CompareJobService can evict jobs that
+    // finished long ago instead of keeping every job in memory for the life of the process.
+    private volatile Instant finishedAt;
 
     CompareJob(String id, String username, String dataset, int epochs) {
         this.id = id;
@@ -50,6 +55,13 @@ class CompareJob {
 
     void setStatus(Status status) {
         this.status = status;
+        if (status == Status.COMPLETED || status == Status.FAILED) {
+            this.finishedAt = Instant.now();
+        }
+    }
+
+    Instant getFinishedAt() {
+        return finishedAt;
     }
 
     String getCurrentModel() {

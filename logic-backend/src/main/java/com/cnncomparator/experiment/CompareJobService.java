@@ -10,6 +10,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -32,7 +34,15 @@ public class CompareJobService {
     @Value("${ai-backend.url}")
     private String aiBackendUrl;
 
+    // Finished jobs stay in the map so clients can poll a final status, but nothing ever
+    // reads them again after this long — without eviction the map grows without bound for
+    // the life of the process.
+    @Value("${compare-jobs.retention:PT1H}")
+    private Duration jobRetention;
+
     public String startJob(CompareRequest request, String username) {
+        evictExpiredJobs();
+
         String jobId = UUID.randomUUID().toString();
         CompareJob job = new CompareJob(jobId, username, request.dataset(), request.training().epochs());
         jobs.put(jobId, job);
@@ -40,6 +50,11 @@ public class CompareJobService {
         compareJobExecutor.submit(() -> runJob(job, request));
 
         return jobId;
+    }
+
+    private void evictExpiredJobs() {
+        Instant cutoff = Instant.now().minus(jobRetention);
+        jobs.values().removeIf(job -> job.getFinishedAt() != null && job.getFinishedAt().isBefore(cutoff));
     }
 
     public CompareJobStatus getStatus(String jobId, String username) {

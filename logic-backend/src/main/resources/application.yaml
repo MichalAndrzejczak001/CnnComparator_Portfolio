@@ -13,10 +13,21 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
+      # Flyway (below) owns the schema now; Hibernate only checks that its entity
+      # mappings still match what Flyway created, instead of silently altering tables.
+      ddl-auto: validate
+  flyway:
+    # Lets Flyway adopt a database that already has these tables (created by the old
+    # ddl-auto: update) without trying to re-run V1 against it — see V1__init_schema.sql.
+    baseline-on-migrate: true
 
 ai-backend:
   url: ${PYTHON_BACKEND_URL}
+
+compare-jobs:
+  # How long a finished (COMPLETED/FAILED) compare job stays visible via GET
+  # /experiments/compare/jobs/{id} before CompareJobService evicts it from memory.
+  retention: PT1H
 
 jwt:
   secret: ${JWT_SECRET}
