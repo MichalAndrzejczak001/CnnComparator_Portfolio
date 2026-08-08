@@ -139,19 +139,15 @@ class AuthControllerIntegrationTest {
     @Test
     @Story("Security")
     @Severity(SeverityLevel.CRITICAL)
-    void registerAndLoginHandleSqlInjectionStyleUsernameSafely() throws Exception {
+    void registerRejectsSqlInjectionStyleUsername() throws Exception {
+        // The username charset validation (RegisterRequest) now rejects this before it ever
+        // reaches persistence, so this is defense-in-depth on top of JPA's parameterized
+        // queries, which would already have prevented any actual injection.
         String injectionAttempt = "'; DROP TABLE users; --";
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + injectionAttempt + "\",\"password\":\"password123\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.token").isNotEmpty());
-
-        mockMvc.perform(post("/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + injectionAttempt + "\",\"password\":\"password123\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(status().isBadRequest());
     }
 }
