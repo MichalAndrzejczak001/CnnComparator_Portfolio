@@ -19,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -27,7 +28,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,10 @@ public class ExperimentService {
     @Value("${ai-backend.url}")
     private String aiBackendUrl;
 
+    // Deliberately not @Transactional: it calls out to ai-backend first, which can run for
+    // minutes (see RestTemplateConfig's read timeout). Holding a DB transaction/connection
+    // open for that long would starve the connection pool for no benefit — the only DB work
+    // here is the final save(), which Spring Data already runs in its own short transaction.
     public ExperimentResponse createExperiment(ExperimentRequest request, String username) {
         User user = findUser(username);
 
@@ -76,6 +83,7 @@ public class ExperimentService {
         return toResponse(experiment);
     }
 
+    @Transactional(readOnly = true)
     public List<ExperimentSummaryResponse> listExperiments(String username) {
         User user = findUser(username);
 
@@ -84,12 +92,14 @@ public class ExperimentService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ExperimentResponse getExperiment(Long id, String username) {
         Experiment experiment = findExperiment(id);
         assertOwner(experiment, username);
         return toResponse(experiment);
     }
 
+    @Transactional
     public void deleteExperiment(Long id, String username) {
         Experiment experiment = findExperiment(id);
         assertOwner(experiment, username);
@@ -100,10 +110,17 @@ public class ExperimentService {
         return restTemplate.postForObject(aiBackendUrl + "/compare", request, CompareResponse.class);
     }
 
+    @Transactional(readOnly = true)
     public List<ExperimentResponse> compareExistingExperiments(List<Long> ids, String username) {
+        Map<Long, Experiment> byId = experimentRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Experiment::getId, experiment -> experiment));
+
         return ids.stream()
                 .map(id -> {
-                    Experiment experiment = findExperiment(id);
+                    Experiment experiment = byId.get(id);
+                    if (experiment == null) {
+                        throw new NoSuchElementException("Experiment not found: " + id);
+                    }
                     assertOwner(experiment, username);
                     return experiment;
                 })
@@ -125,6 +142,7 @@ public class ExperimentService {
         return createExperiment(request, username);
     }
 
+    @Transactional
     public ExperimentResponse updateNote(Long id, String username, String note) {
         Experiment experiment = findExperiment(id);
         assertOwner(experiment, username);

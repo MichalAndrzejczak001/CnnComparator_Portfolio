@@ -26,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -124,6 +125,40 @@ class ExperimentServiceTest {
         experimentService.deleteExperiment(7L, "michal");
 
         verify(experimentRepository).delete(experiment);
+    }
+
+    @Test
+    void compareExistingExperimentsFetchesAllIdsInOneQuery() {
+        Experiment e1 = Experiment.builder().id(1L).user(owner).model("simple_cnn").build();
+        Experiment e2 = Experiment.builder().id(2L).user(owner).model("lenet5").build();
+        when(experimentRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(e1, e2));
+
+        List<ExperimentResponse> result = experimentService.compareExistingExperiments(List.of(1L, 2L), "michal");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).id()).isEqualTo(1L);
+        assertThat(result.get(1).id()).isEqualTo(2L);
+        verify(experimentRepository, never()).findById(any());
+    }
+
+    @Test
+    void compareExistingExperimentsThrowsWhenAnIdIsMissing() {
+        Experiment e1 = Experiment.builder().id(1L).user(owner).build();
+        when(experimentRepository.findAllById(List.of(1L, 99L))).thenReturn(List.of(e1));
+
+        assertThatThrownBy(() -> experimentService.compareExistingExperiments(List.of(1L, 99L), "michal"))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    void compareExistingExperimentsThrowsAccessDeniedForNonOwnedExperiment() {
+        Experiment owned = Experiment.builder().id(1L).user(owner).build();
+        User someoneElse = User.builder().id(2L).username("someoneElse").password("hash").build();
+        Experiment notOwned = Experiment.builder().id(2L).user(someoneElse).build();
+        when(experimentRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(owned, notOwned));
+
+        assertThatThrownBy(() -> experimentService.compareExistingExperiments(List.of(1L, 2L), "michal"))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
