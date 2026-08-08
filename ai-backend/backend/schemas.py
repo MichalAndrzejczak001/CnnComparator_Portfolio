@@ -9,6 +9,7 @@ class TrainingConfig(BaseModel):
 
 
 class ExperimentConfig(BaseModel):
+    # Keep this in sync with models.factory.MODEL_NAMES — checked by test_schemas.py.
     model: Literal["simple_cnn", "lenet5", "alexnet", "vgg11", "resnet18", "mobilenet"]
     dataset: Literal["mnist", "cifar10", "fashion_mnist"]
     training: TrainingConfig
