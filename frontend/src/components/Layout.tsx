@@ -19,7 +19,7 @@ export function Layout() {
           <nav className="app-nav">
             <Link to="/dashboard/overview">Overview</Link>
             <Link to="/dashboard">Dashboard</Link>
-            <Link to="/dashboard/compare">Compare</Link>
+            <Link to="/dashboard/compare">Compare architectures</Link>
             <Link to="/dashboard/compare-selected">Compare selected</Link>
             <Link to="/dashboard/models">Models</Link>
             <Link to="/dashboard/datasets">Datasets</Link>
