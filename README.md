@@ -1,14 +1,18 @@
 # CnnComparator
 
-A web application for training and comparing convolutional neural network architectures on image classification tasks. Train six different CNN architectures on three standard datasets, then compare their accuracy, loss curves and training time side by side — with Grad-CAM visualizations to see what each model actually learned.
+A web application for training and comparing convolutional neural network architectures on image classification tasks. Train six different CNN architectures on three standard datasets, then compare accuracy, loss/accuracy curves, calibration, confusion matrices and efficiency (parameters, inference latency, throughput) side by side — with Grad-CAM visualizations to see what each model actually learned.
 
 ## Features
 
 - **6 CNN architectures** — SimpleCNN, LeNet-5, AlexNet, VGG11, ResNet18, MobileNetV1
 - **3 datasets** — MNIST, Fashion-MNIST, CIFAR-10
-- **Head-to-head comparison** — train all six architectures on the same dataset/config and rank them by accuracy, loss and training time
-- **Compare saved experiments** — pick any of your past experiments and compare them side by side without retraining
-- **Rerun & note editing** — retrain an experiment with the same configuration in one click, or edit its note after the fact
+- **Per-experiment diagnostics** — accuracy, macro F1, loss, parameter count, inference latency and training throughput, an overfitting-gap indicator, and a best-epoch marker (by validation loss) overlaid on the training curves
+- **Calibration curve** — a reliability diagram (predicted confidence vs. actual accuracy, binned) showing whether the model's confidence is trustworthy
+- **Confusion matrix & per-class breakdown** — counts or row-normalized percentages, per-class precision/recall/F1, and a ranked list of the most-confused class pairs
+- **Head-to-head comparison** — train all six architectures on the same dataset/config and rank them by accuracy, loss, training time and every metric above, in a sortable table with best/worst highlighting and a radar chart
+- **Compare saved experiments** — pick any of your past experiments and compare them side by side without retraining, including confusion matrices and per-class metrics grouped by dataset
+- **CSV export** — every section of a results page (summary, per-epoch curves, confusion matrix, per-class metrics) exports to one CSV, not just the on-screen table
+- **Rerun, note editing & bulk delete** — retrain an experiment with the same configuration in one click, edit its note after the fact, or delete several experiments at once from the dashboard
 - **Grad-CAM explainability** — visualize which pixels a trained model focused on when making a prediction
 - **Interactive classification** — upload an image or draw a digit by hand and classify it with a trained model
 - **Client-side augmentation preview** — rotate, flip, adjust brightness and add noise to an image before training
@@ -102,9 +106,9 @@ Each layer has its own test suite, run independently. These run against an in-pr
 context (H2, MockMvc, a stubbed ai-backend) and are what CI runs on every push:
 
 ```bash
-cd ai-backend && pytest                # 37 tests — models, trainer, API (incl. corrupt-upload cases)
+cd ai-backend && pytest                # 52 tests — models, trainer, API (incl. corrupt-upload cases, calibration binning)
 cd logic-backend && ./gradlew test     # 48 tests — 16 unit, 23 MockMvc integration (incl. destructive/security cases), 9 Cucumber BDD
-cd frontend && npm run test            # 26 unit tests (Vitest, incl. React Testing Library component tests)
+cd frontend && npm run test            # 43 unit tests (Vitest, incl. React Testing Library and CSV-export coverage)
 cd frontend && npm run test:e2e        # 13 end-to-end tests (Cypress, requires the dev server running)
 ```
 
