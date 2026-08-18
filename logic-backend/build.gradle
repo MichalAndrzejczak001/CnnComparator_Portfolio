@@ -48,6 +48,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
 
     implementation 'com.mysql:mysql-connector-j'
     // spring-boot-starter-flyway (not just flyway-core) is what actually registers Flyway's

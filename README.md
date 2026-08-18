@@ -37,7 +37,7 @@ Three independently deployable services:
 
 - **ai-backend** trains and evaluates the CNN models, generates Grad-CAM overlays, and has no authentication of its own — it's only reachable from `logic-backend` inside the Docker network, never exposed to the host.
 - **logic-backend** owns users and experiments, proxies training/inference requests to `ai-backend`, and is the only service the frontend talks to.
-- **frontend** is a Vite dev server (not a production nginx build — see [Known limitations](#known-limitations)) that proxies `/auth` and `/experiments` requests to `logic-backend`.
+- **frontend** is a static React build served by nginx, which proxies `/auth` and `/experiments` requests to `logic-backend`.
 
 ## Tech stack
 
@@ -59,6 +59,7 @@ docker compose up --build
 
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - Logic backend API: [http://localhost:8080](http://localhost:8080)
+- Logic backend API docs (Swagger UI): [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - ai-backend is only reachable from inside the Docker network (by design — it has no auth of its own)
 
 ### Running services locally
@@ -151,9 +152,8 @@ CnnComparator_Portfolio/
 
 Things I'm aware of and would tackle next, roughly in priority order:
 
-- **`/experiments/compare` trains all 6 models sequentially**, not in parallel — a comparison run takes 6x as long as a single training run. Would move to a thread pool if this became a real bottleneck.
+- **`/experiments/compare` trains all 6 models sequentially**, not in parallel — a comparison run takes 6x as long as a single training run. A naive thread pool wouldn't necessarily help here: PyTorch already parallelizes each model's CPU ops internally, so running several trainings concurrently risks core oversubscription rather than a clean speedup, unless thread counts are tuned per worker.
 - **No request timeout tuning beyond the AI backend proxy** — `RestTemplate` has a 45-minute read timeout to accommodate long training runs, which also means a genuinely stuck request stays open for a long time.
-- **Frontend Docker image runs the Vite dev server**, not a production build behind nginx — fine for a demo, not how I'd ship it.
 
 ## License
 
