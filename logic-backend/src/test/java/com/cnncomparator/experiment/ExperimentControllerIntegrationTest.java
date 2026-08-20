@@ -213,6 +213,36 @@ class ExperimentControllerIntegrationTest {
     @Test
     @Story("Negative")
     @Severity(SeverityLevel.NORMAL)
+    void createExperimentRejectsUnknownModel() throws Exception {
+        String token = registerAndGetToken("invalid_model_user");
+
+        mockMvc.perform(post("/experiments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"model":"not_a_real_model","dataset":"mnist","training":{"epochs":1,"batch_size":16,"learning_rate":0.01}}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Story("Negative")
+    @Severity(SeverityLevel.NORMAL)
+    void createExperimentRejectsUnknownDataset() throws Exception {
+        String token = registerAndGetToken("invalid_dataset_user");
+
+        mockMvc.perform(post("/experiments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"model":"simple_cnn","dataset":"not_a_real_dataset","training":{"epochs":1,"batch_size":16,"learning_rate":0.01}}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Story("Negative")
+    @Severity(SeverityLevel.NORMAL)
     void predictRejectsNonExistentExperiment() throws Exception {
         String token = registerAndGetToken("predict_missing_experiment_user");
         MockMultipartFile file = new MockMultipartFile("file", "digit.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});

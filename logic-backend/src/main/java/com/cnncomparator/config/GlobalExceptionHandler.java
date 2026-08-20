@@ -11,6 +11,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
@@ -57,6 +58,15 @@ public class GlobalExceptionHandler {
     })
     public ProblemDetail handleMalformedRequest(Exception ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed or incomplete request");
+    }
+
+    // ai-backend rejected the request as invalid (e.g. a corrupt image upload) — this is a
+    // client error, not an outage, so it must not be reported as the generic 502 below.
+    @ExceptionHandler(HttpClientErrorException.class)
+    public ProblemDetail handleAiBackendRejection(HttpClientErrorException ex) {
+        log.warn("ai-backend rejected the request: {}", ex.getResponseBodyAsString());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "The AI backend rejected the request as invalid: " + ex.getResponseBodyAsString());
     }
 
     @ExceptionHandler(RestClientException.class)
