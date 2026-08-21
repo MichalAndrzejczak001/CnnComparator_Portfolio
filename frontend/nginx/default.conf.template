@@ -10,7 +10,10 @@ server {
         try_files $uri /index.html;
     }
 
-    location /auth/ {
+    # No trailing slash on the prefix: the frontend calls bare /experiments (list/create)
+    # as well as /experiments/{id} etc — a trailing slash here would only match the latter
+    # and send bare /experiments through the SPA fallback instead (301 loop on the wrong port).
+    location /auth {
         proxy_pass ${BACKEND_URL};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -18,7 +21,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location /experiments/ {
+    location /experiments {
         proxy_pass ${BACKEND_URL};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
