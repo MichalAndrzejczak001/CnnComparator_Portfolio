@@ -4,6 +4,7 @@ import { ApiError, compareExistingExperiments } from '../api/client'
 import type { DatasetName, ExperimentResponse } from '../types/api'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
+import { computeConfusedPairs } from './charts/MostConfusedPairs'
 import { MultiLineChart } from './charts/MultiLineChart'
 import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { RadarChart } from './charts/RadarChart'
@@ -258,6 +259,9 @@ export function CompareSelectedPage() {
       ID: experiment.id,
       Model: MODEL_LABELS[experiment.model] ?? experiment.model,
       Dataset: DATASET_LABELS[experiment.dataset] ?? experiment.dataset,
+      Epochs: experiment.epochs,
+      'Batch size': experiment.batch_size,
+      'Learning rate': experiment.learning_rate,
       'Accuracy (%)': (experiment.test_accuracy * 100).toFixed(2),
       'Macro F1 (%)': macroF1 !== null ? (macroF1 * 100).toFixed(2) : '',
       'Test loss': experiment.test_loss,
@@ -268,11 +272,15 @@ export function CompareSelectedPage() {
       'Overfitting gap (pp)': overfitGap !== null ? (overfitGap * 100).toFixed(2) : '',
       'Best epoch': bestEpochIndex !== null ? bestEpochIndex + 1 : '',
       Note: experiment.note ?? '',
+      'Model ID': experiment.model_id,
       'Created at': experiment.created_at,
     }))
   }
 
-  function buildPerEpochRows(key: 'val_loss_per_epoch' | 'val_accuracy_per_epoch', isPercent: boolean): Record<string, unknown>[] {
+  function buildPerEpochRows(
+    key: 'train_loss_per_epoch' | 'val_loss_per_epoch' | 'train_accuracy_per_epoch' | 'val_accuracy_per_epoch',
+    isPercent: boolean,
+  ): Record<string, unknown>[] {
     const epochCount = Math.max(0, ...sortedRows.map((row) => row.experiment[key].length))
     return Array.from({ length: epochCount }, (_, index) => {
       const record: Record<string, unknown> = { Epoch: index + 1 }
@@ -304,10 +312,32 @@ export function CompareSelectedPage() {
     }))
   }
 
+  function buildConfusedPairsRows(matrix: number[][], labels: string[]): Record<string, unknown>[] {
+    return computeConfusedPairs(matrix, labels).map((pair, index) => ({
+      Rank: index + 1,
+      'Actual class': pair.actual,
+      'Predicted as': pair.predicted,
+      Count: pair.count,
+      'Share of actual (%)': (pair.shareOfActual * 100).toFixed(2),
+    }))
+  }
+
+  function buildCalibrationRows(experiment: ExperimentResponse): Record<string, unknown>[] {
+    return (experiment.calibration_curve ?? []).map((bin) => ({
+      'Confidence min (%)': (bin.bin_min * 100).toFixed(0),
+      'Confidence max (%)': (bin.bin_max * 100).toFixed(0),
+      'Accuracy (%)': bin.accuracy !== null ? (bin.accuracy * 100).toFixed(2) : '',
+      'Avg confidence (%)': bin.avg_confidence !== null ? (bin.avg_confidence * 100).toFixed(2) : '',
+      Samples: bin.count,
+    }))
+  }
+
   function handleExportCsv() {
     const sections = [
       toCsvSection('Summary', buildSummaryRows()),
+      toCsvSection('Training loss per epoch', buildPerEpochRows('train_loss_per_epoch', false)),
       toCsvSection('Validation loss per epoch', buildPerEpochRows('val_loss_per_epoch', false)),
+      toCsvSection('Training accuracy per epoch', buildPerEpochRows('train_accuracy_per_epoch', true)),
       toCsvSection('Validation accuracy per epoch', buildPerEpochRows('val_accuracy_per_epoch', true)),
     ]
 
@@ -316,6 +346,8 @@ export function CompareSelectedPage() {
       const label = `${seriesLabel(experiment)} (${DATASET_LABELS[experiment.dataset] ?? experiment.dataset})`
       sections.push(toCsvSection(`Confusion matrix — ${label}`, buildConfusionMatrixRows(experiment.confusion_matrix, classLabels)))
       sections.push(toCsvSection(`Per-class metrics — ${label}`, buildPerClassRows(experiment.confusion_matrix, classLabels)))
+      sections.push(toCsvSection(`Most confused pairs — ${label}`, buildConfusedPairsRows(experiment.confusion_matrix, classLabels)))
+      sections.push(toCsvSection(`Calibration curve — ${label}`, buildCalibrationRows(experiment)))
     })
 
     downloadCsvText('compare-selected-experiments.csv', sections.join('\n\n'))
