@@ -19,10 +19,16 @@ interface HoverTarget {
   axisIndex: number
 }
 
+// Extra horizontal room so axis labels near the left/right edges (e.g. "Training speed")
+// have space to render fully instead of being clipped by the SVG viewport.
+const LABEL_PADDING_X = 44
+
 export function RadarChart({ axes, series, size = 280, title = 'Model comparison' }: RadarChartProps) {
   const [hover, setHover] = useState<HoverTarget | null>(null)
 
-  const center = size / 2
+  const svgWidth = size + LABEL_PADDING_X * 2
+  const centerX = size / 2 + LABEL_PADDING_X
+  const centerY = size / 2
   const radius = size / 2 - 44
   const angleStep = (2 * Math.PI) / Math.max(axes.length, 1)
 
@@ -32,9 +38,16 @@ export function RadarChart({ axes, series, size = 280, title = 'Model comparison
     const angle = axisIndex * angleStep - Math.PI / 2
     const ratio = max > 0 ? value / max : 0
     return {
-      x: center + Math.cos(angle) * radius * ratio,
-      y: center + Math.sin(angle) * radius * ratio,
+      x: centerX + Math.cos(angle) * radius * ratio,
+      y: centerY + Math.sin(angle) * radius * ratio,
     }
+  }
+
+  const labelAnchorFor = (angle: number): 'start' | 'middle' | 'end' => {
+    const cos = Math.cos(angle)
+    if (cos > 0.3) return 'start'
+    if (cos < -0.3) return 'end'
+    return 'middle'
   }
 
   const polygonPoints = (values: number[]): string =>
@@ -55,7 +68,7 @@ export function RadarChart({ axes, series, size = 280, title = 'Model comparison
       ? (hoveredSeries.displayValues?.[hover.axisIndex] ?? hoveredSeries.values[hover.axisIndex]?.toFixed(2) ?? '—')
       : null
 
-  const tooltipLeft = hoveredPoint ? Math.min(Math.max(hoveredPoint.x, 64), size - 64) : 0
+  const tooltipLeft = hoveredPoint ? Math.min(Math.max(hoveredPoint.x, 64), svgWidth - 64) : 0
   const tooltipTop = hoveredPoint ? Math.max(hoveredPoint.y - 10, 8) : 0
 
   return (
@@ -73,18 +86,23 @@ export function RadarChart({ axes, series, size = 280, title = 'Model comparison
       </div>
 
       <div className="chart-svg-wrap">
-        <svg width={size} height={size} role="img" aria-label={`${title} radar chart. Hover a point to see its value.`}>
+        <svg
+          width={svgWidth}
+          height={size}
+          role="img"
+          aria-label={`${title} radar chart. Hover a point to see its value.`}
+        >
           {axes.map((axis, axisIndex) => {
             const angle = axisIndex * angleStep - Math.PI / 2
-            const x = center + Math.cos(angle) * radius
-            const y = center + Math.sin(angle) * radius
-            const labelX = center + Math.cos(angle) * (radius + 18)
-            const labelY = center + Math.sin(angle) * (radius + 18)
+            const x = centerX + Math.cos(angle) * radius
+            const y = centerY + Math.sin(angle) * radius
+            const labelX = centerX + Math.cos(angle) * (radius + 18)
+            const labelY = centerY + Math.sin(angle) * (radius + 18)
 
             return (
               <g key={axis}>
-                <line x1={center} y1={center} x2={x} y2={y} stroke="#444" />
-                <text x={labelX} y={labelY} fontSize={11} textAnchor="middle" fill="#ccc">
+                <line x1={centerX} y1={centerY} x2={x} y2={y} stroke="#444" />
+                <text x={labelX} y={labelY} fontSize={11} textAnchor={labelAnchorFor(angle)} fill="#ccc">
                   {axis}
                 </text>
               </g>
