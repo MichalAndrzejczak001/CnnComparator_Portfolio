@@ -131,6 +131,7 @@ export function ExperimentDetailPage() {
     setError(null)
     try {
       const rerun = await rerunExperiment(experimentId)
+      setRerunning(false)
       navigate(`/dashboard/experiments/${rerun.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : 'Could not rerun experiment.')
