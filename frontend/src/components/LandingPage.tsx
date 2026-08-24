@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { consumeSessionExpiredFlag } from '../api/client'
 import { AuthModal, type AuthMode } from './AuthModal'
 import { NeuralNetSVG } from './NeuralNetSVG'
 
@@ -26,7 +27,8 @@ const FEATURES = [
 ]
 
 export function LandingPage({ onAuthenticated }: LandingPageProps) {
-  const [authMode, setAuthMode] = useState<AuthMode | null>(null)
+  const [sessionExpired] = useState(() => consumeSessionExpiredFlag())
+  const [authMode, setAuthMode] = useState<AuthMode | null>(sessionExpired ? 'login' : null)
 
   return (
     <div className="landing">
@@ -41,6 +43,10 @@ export function LandingPage({ onAuthenticated }: LandingPageProps) {
           </button>
         </div>
       </nav>
+
+      {sessionExpired && (
+        <p className="form-error landing-session-expired">Your session expired — please log in again.</p>
+      )}
 
       <section className="landing-hero">
         <div className="landing-hero-text">

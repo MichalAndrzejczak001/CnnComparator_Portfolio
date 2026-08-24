@@ -17,6 +17,7 @@ import type {
 } from '../types/api'
 
 const TOKEN_STORAGE_KEY = 'cnncomparator_token'
+const SESSION_EXPIRED_KEY = 'cnncomparator_session_expired'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -28,6 +29,14 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
+}
+
+// Set right before the hard redirect below, so the landing page can show a message
+// explaining why the user was suddenly logged out instead of leaving them guessing.
+export function consumeSessionExpiredFlag(): boolean {
+  const wasSet = sessionStorage.getItem(SESSION_EXPIRED_KEY) === '1'
+  sessionStorage.removeItem(SESSION_EXPIRED_KEY)
+  return wasSet
 }
 
 export class ApiError extends Error {
@@ -56,6 +65,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as ProblemDetail | null
+
+    // A 401/403 with no JSON body means Spring Security rejected the request before it
+    // reached a controller — i.e. the token is missing, invalid, or expired, not a
+    // legitimate per-resource authorization failure (those come back with a ProblemDetail
+    // body, e.g. "you don't own this compare job"). Treat it as a dead session: without
+    // this, an expired token makes every action on the page silently fail forever, since
+    // ProtectedRoute only checks that a token is present, not that it's still valid.
+    if ((response.status === 401 || response.status === 403) && problem === null && getToken()) {
+      clearToken()
+      sessionStorage.setItem(SESSION_EXPIRED_KEY, '1')
+      window.location.assign('/')
+    }
+
     throw new ApiError(response.status, problem?.detail ?? response.statusText)
   }
 

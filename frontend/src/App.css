@@ -388,6 +388,12 @@ input[type='file'] {
   gap: var(--space-3);
 }
 
+.landing-session-expired {
+  max-width: 1080px;
+  margin: var(--space-5) auto 0;
+  width: calc(100% - var(--space-6) * 2);
+}
+
 .landing-hero {
   display: flex;
   align-items: center;
