@@ -4,6 +4,7 @@ import type { CompareJobStatus, CompareResponse, CompareResultItem, DatasetName,
 import { AccuracyTimeChart } from './charts/AccuracyTimeChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
+import { computeConfusedPairs } from './charts/MostConfusedPairs'
 import { MultiLineChart } from './charts/MultiLineChart'
 import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { RadarChart } from './charts/RadarChart'
@@ -388,6 +389,8 @@ export function ComparePage() {
   function buildSummaryRows(): Record<string, unknown>[] {
     return sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex }) => ({
       Model: MODEL_LABELS[item.model],
+      Dataset: result ? DATASET_LABELS[result.dataset] : '',
+      Epochs: result?.epochs ?? '',
       'Accuracy (%)': (item.test_accuracy * 100).toFixed(2),
       'Macro F1 (%)': macroF1 !== null ? (macroF1 * 100).toFixed(2) : '',
       'Test loss': item.test_loss,
@@ -400,7 +403,10 @@ export function ComparePage() {
     }))
   }
 
-  function buildPerEpochRows(key: 'val_loss_per_epoch' | 'val_accuracy_per_epoch', isPercent: boolean): Record<string, unknown>[] {
+  function buildPerEpochRows(
+    key: 'train_loss_per_epoch' | 'val_loss_per_epoch' | 'train_accuracy_per_epoch' | 'val_accuracy_per_epoch',
+    isPercent: boolean,
+  ): Record<string, unknown>[] {
     const epochCount = Math.max(0, ...sortedRows.map((row) => row.item[key].length))
     return Array.from({ length: epochCount }, (_, index) => {
       const record: Record<string, unknown> = { Epoch: index + 1 }
@@ -432,13 +438,35 @@ export function ComparePage() {
     }))
   }
 
+  function buildConfusedPairsRows(matrix: number[][], labels: string[]): Record<string, unknown>[] {
+    return computeConfusedPairs(matrix, labels).map((pair, index) => ({
+      Rank: index + 1,
+      'Actual class': pair.actual,
+      'Predicted as': pair.predicted,
+      Count: pair.count,
+      'Share of actual (%)': (pair.shareOfActual * 100).toFixed(2),
+    }))
+  }
+
+  function buildCalibrationRows(item: CompareResultItem): Record<string, unknown>[] {
+    return (item.calibration_curve ?? []).map((bin) => ({
+      'Confidence min (%)': (bin.bin_min * 100).toFixed(0),
+      'Confidence max (%)': (bin.bin_max * 100).toFixed(0),
+      'Accuracy (%)': bin.accuracy !== null ? (bin.accuracy * 100).toFixed(2) : '',
+      'Avg confidence (%)': bin.avg_confidence !== null ? (bin.avg_confidence * 100).toFixed(2) : '',
+      Samples: bin.count,
+    }))
+  }
+
   function handleExportCsv() {
     if (!result) return
     const classLabels = DATASET_CLASS_LABELS[result.dataset]
 
     const sections = [
       toCsvSection('Summary', buildSummaryRows()),
+      toCsvSection('Training loss per epoch', buildPerEpochRows('train_loss_per_epoch', false)),
       toCsvSection('Validation loss per epoch', buildPerEpochRows('val_loss_per_epoch', false)),
+      toCsvSection('Training accuracy per epoch', buildPerEpochRows('train_accuracy_per_epoch', true)),
       toCsvSection('Validation accuracy per epoch', buildPerEpochRows('val_accuracy_per_epoch', true)),
     ]
 
@@ -446,6 +474,8 @@ export function ComparePage() {
       const label = MODEL_LABELS[item.model]
       sections.push(toCsvSection(`Confusion matrix — ${label}`, buildConfusionMatrixRows(item.confusion_matrix, classLabels)))
       sections.push(toCsvSection(`Per-class metrics — ${label}`, buildPerClassRows(item.confusion_matrix, classLabels)))
+      sections.push(toCsvSection(`Most confused pairs — ${label}`, buildConfusedPairsRows(item.confusion_matrix, classLabels)))
+      sections.push(toCsvSection(`Calibration curve — ${label}`, buildCalibrationRows(item)))
     })
 
     downloadCsvText(`compare-architectures-${result.dataset}.csv`, sections.join('\n\n'))
