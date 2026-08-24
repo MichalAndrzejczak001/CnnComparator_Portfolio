@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getCompareJob, startCompareJob } from '../api/client'
 import type { CompareJobStatus, CompareResponse, CompareResultItem, DatasetName, ModelName } from '../types/api'
-import { AccuracyTimeChart } from './charts/AccuracyTimeChart'
+import { AccuracyScatterChart } from './charts/AccuracyScatterChart'
+import { CalibrationChart } from './charts/CalibrationChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { computeConfusedPairs } from './charts/MostConfusedPairs'
@@ -165,7 +166,7 @@ function getSortValue(row: Row, key: SortKey): number | string {
   }
 }
 
-const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass'] as const
+const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass', 'calibration'] as const
 type SectionKey = (typeof SECTION_KEYS)[number]
 
 const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
@@ -173,6 +174,7 @@ const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
   results: true,
   matrices: false,
   perClass: false,
+  calibration: false,
 }
 
 export function ComparePage() {
@@ -195,7 +197,7 @@ export function ComparePage() {
     const storedJobId = localStorage.getItem(JOB_ID_STORAGE_KEY)
     if (storedJobId) {
       setSubmitting(true)
-      trackJob(storedJobId)
+      trackJob(storedJobId, true)
     }
     return () => stopPolling()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,7 +210,7 @@ export function ComparePage() {
     }
   }
 
-  async function checkJob(jobId: string): Promise<CompareJobStatus | null> {
+  async function checkJob(jobId: string, isResume: boolean): Promise<CompareJobStatus | null> {
     try {
       const status = await getCompareJob(jobId)
       setJobStatus(status)
@@ -228,22 +230,28 @@ export function ComparePage() {
       localStorage.removeItem(JOB_ID_STORAGE_KEY)
       setSubmitting(false)
 
-      // A 404 just means the server no longer knows this job (e.g. it restarted) — keep
-      // showing any cached result instead of scaring the user with an error banner.
-      if (!(err instanceof ApiError && err.status === 404)) {
+      if (err instanceof ApiError && err.status === 404) {
+        // A 404 means the server no longer knows this job (e.g. it restarted). When resuming
+        // a job from a previous visit that's expected and not worth a scary error banner —
+        // but when it happens right after the user just clicked "Run comparison", the progress
+        // bar would otherwise just vanish with no explanation, so tell them what happened.
+        if (!isResume) {
+          setError('Lost track of this comparison — the server may have restarted. Please try again.')
+        }
+      } else {
         setError(err instanceof ApiError ? err.detail : 'Could not check comparison progress.')
       }
       return null
     }
   }
 
-  async function trackJob(jobId: string) {
+  async function trackJob(jobId: string, isResume: boolean) {
     localStorage.setItem(JOB_ID_STORAGE_KEY, jobId)
-    const status = await checkJob(jobId)
+    const status = await checkJob(jobId, isResume)
 
     if (!isTerminal(status)) {
       pollIntervalRef.current = window.setInterval(async () => {
-        const latest = await checkJob(jobId)
+        const latest = await checkJob(jobId, isResume)
         if (isTerminal(latest)) stopPolling()
       }, POLL_INTERVAL_MS)
     }
@@ -263,7 +271,7 @@ export function ComparePage() {
         dataset,
         training: { epochs, batch_size: batchSize, learning_rate: learningRate },
       })
-      await trackJob(jobId)
+      await trackJob(jobId, false)
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : 'Comparison failed. Please try again.')
       setSubmitting(false)
@@ -371,7 +379,14 @@ export function ComparePage() {
     label: MODEL_LABELS[row.item.model],
     color: row.color,
     accuracy: row.item.test_accuracy,
-    trainingTimeSeconds: row.item.training_time_seconds,
+    xValue: row.item.training_time_seconds,
+  }))
+
+  const accuracyParamsPoints = rows.map((row) => ({
+    label: MODEL_LABELS[row.item.model],
+    color: row.color,
+    accuracy: row.item.test_accuracy,
+    xValue: row.item.param_count,
   }))
 
   const lossSeries = rows.map((row) => ({
@@ -586,7 +601,18 @@ export function ComparePage() {
                 axes={['Accuracy', 'Low loss', 'Training speed', 'Inference speed', 'Compact']}
                 series={radarSeries}
               />
-              <AccuracyTimeChart points={accuracyTimePoints} />
+              <AccuracyScatterChart
+                points={accuracyTimePoints}
+                title="Accuracy vs. training time"
+                xAxisLabel="Training time"
+                formatXValue={(v) => `${v.toFixed(0)}s`}
+              />
+              <AccuracyScatterChart
+                points={accuracyParamsPoints}
+                title="Accuracy vs. parameters"
+                xAxisLabel="Parameters"
+                formatXValue={formatParamCount}
+              />
               <MultiLineChart title="Validation loss" yLabel="Loss" series={lossSeries} formatValue={(v) => v.toFixed(3)} />
               <MultiLineChart
                 title="Validation accuracy"
@@ -680,6 +706,26 @@ export function ComparePage() {
                   />
                 </div>
               ))}
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Calibration curves"
+            open={openSections.calibration}
+            onToggle={() => toggleSection('calibration')}
+          >
+            <div className="compare-matrix-row">
+              {rows.map((row) =>
+                row.item.calibration_curve && row.item.calibration_curve.length > 0 ? (
+                  <div key={row.item.model} className="compare-matrix-item">
+                    <span className="compare-matrix-item-label">
+                      <span className="chart-legend-swatch" style={{ background: row.color }} />
+                      {MODEL_LABELS[row.item.model]}
+                    </span>
+                    <CalibrationChart bins={row.item.calibration_curve} width={320} height={220} />
+                  </div>
+                ) : null,
+              )}
             </div>
           </CollapsibleSection>
         </div>
