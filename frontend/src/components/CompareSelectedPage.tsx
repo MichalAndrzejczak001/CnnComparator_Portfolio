@@ -56,6 +56,9 @@ type SortKey =
   | 'id'
   | 'model'
   | 'dataset'
+  | 'epochs'
+  | 'batchSize'
+  | 'learningRate'
   | 'accuracy'
   | 'macroF1'
   | 'testLoss'
@@ -75,6 +78,9 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   id: 'asc',
   model: 'asc',
   dataset: 'asc',
+  epochs: 'asc',
+  batchSize: 'asc',
+  learningRate: 'asc',
   accuracy: 'desc',
   macroF1: 'desc',
   testLoss: 'asc',
@@ -122,6 +128,12 @@ function getSortValue(row: Row, key: SortKey): number | string {
       return row.experiment.model
     case 'dataset':
       return row.experiment.dataset
+    case 'epochs':
+      return row.experiment.epochs
+    case 'batchSize':
+      return row.experiment.batch_size
+    case 'learningRate':
+      return row.experiment.learning_rate
     case 'accuracy':
       return row.experiment.test_accuracy
     case 'macroF1':
@@ -530,6 +542,9 @@ export function CompareSelectedPage() {
                   <th>{headerButton('id', 'ID')}</th>
                   <th>{headerButton('model', 'Model')}</th>
                   <th>{headerButton('dataset', 'Dataset')}</th>
+                  <th>{headerButton('epochs', 'Epochs')}</th>
+                  <th>{headerButton('batchSize', 'Batch size')}</th>
+                  <th>{headerButton('learningRate', 'Learning rate')}</th>
                   <th>{headerButton('accuracy', 'Accuracy')}</th>
                   <th>{headerButton('macroF1', 'Macro F1')}</th>
                   <th>{headerButton('testLoss', 'Test loss')}</th>
@@ -552,6 +567,9 @@ export function CompareSelectedPage() {
                     <td>#{experiment.id}</td>
                     <td>{MODEL_LABELS[experiment.model] ?? experiment.model}</td>
                     <td>{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</td>
+                    <td>{experiment.epochs}</td>
+                    <td>{experiment.batch_size}</td>
+                    <td>{experiment.learning_rate}</td>
                     <td className={cellClass(experiment.id, accuracyBestWorst)}>
                       {(experiment.test_accuracy * 100).toFixed(2)}%
                     </td>
