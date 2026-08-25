@@ -1699,6 +1699,7 @@ input[type='file'] {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  margin-bottom: var(--space-6);
 }
 
 .model-legend-title {
