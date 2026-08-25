@@ -1,3 +1,5 @@
+import { useMemo, useState } from 'react'
+
 type LayerType = 'conv' | 'pool' | 'fc' | 'flatten' | 'resblock' | 'dwconv'
 
 interface LayerBlock {
@@ -201,6 +203,62 @@ const MODELS_DATA: ModelData[] = [
   },
 ]
 
+// Each model's one-line "what makes it different" — not already captured by a spec value,
+// so it isn't derived from MODELS_DATA like the other comparison-table rows are.
+const KEY_FEATURES: Record<string, string> = {
+  simple_cnn: '—',
+  lenet5: 'Average pooling',
+  alexnet: 'Dropout',
+  vgg11: 'Uniform 3×3 convs',
+  resnet18: 'Skip connections',
+  mobilenet: 'Depthwise-separable convs',
+}
+
+function specValue(model: ModelData, label: string): string {
+  return model.specs.find((spec) => spec.label === label)?.value ?? '—'
+}
+
+type CompareSortKey = 'model' | 'year' | 'params' | 'layers' | 'keyFeature' | 'activation'
+type SortDir = 'asc' | 'desc'
+
+const COMPARE_DEFAULT_DIR: Record<CompareSortKey, SortDir> = {
+  model: 'asc',
+  year: 'asc',
+  params: 'asc',
+  layers: 'asc',
+  keyFeature: 'asc',
+  activation: 'asc',
+}
+
+// Parses the already-correct display strings ("225K–316K", "~28.1M") back into a raw number
+// for sorting, rather than storing a second, separately-maintained numeric field — so the
+// comparison table's sort order can't drift from what the spec cards actually display.
+function parseApproxNumber(text: string): number {
+  const match = text.replace('~', '').match(/^([\d.]+)([KM]?)/)
+  if (!match) return 0
+  const value = parseFloat(match[1])
+  if (match[2] === 'M') return value * 1_000_000
+  if (match[2] === 'K') return value * 1_000
+  return value
+}
+
+function getCompareSortValue(model: ModelData, key: CompareSortKey): number | string {
+  switch (key) {
+    case 'model':
+      return model.label
+    case 'year':
+      return model.year === '—' ? 0 : parseInt(model.year, 10)
+    case 'params':
+      return parseApproxNumber(specValue(model, 'Parameters'))
+    case 'layers':
+      return parseInt(specValue(model, 'Layers'), 10) || 0
+    case 'keyFeature':
+      return KEY_FEATURES[model.key] ?? '—'
+    case 'activation':
+      return specValue(model, 'Activation')
+  }
+}
+
 function LayerDiagram({ layers }: { layers: LayerBlock[] }) {
   return (
     <div className="layer-diagram">
@@ -225,6 +283,43 @@ function LayerDiagram({ layers }: { layers: LayerBlock[] }) {
 }
 
 export function ModelsPage() {
+  const [sortKey, setSortKey] = useState<CompareSortKey>('year')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const sortedModels = useMemo(() => {
+    const copy = [...MODELS_DATA]
+    copy.sort((a, b) => {
+      const av = getCompareSortValue(a, sortKey)
+      const bv = getCompareSortValue(b, sortKey)
+      const cmp = typeof av === 'string' || typeof bv === 'string' ? String(av).localeCompare(String(bv)) : av - bv
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [sortKey, sortDir])
+
+  function handleSort(key: CompareSortKey) {
+    if (key === sortKey) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(COMPARE_DEFAULT_DIR[key])
+    }
+  }
+
+  function sortIndicator(key: CompareSortKey) {
+    if (key !== sortKey) return null
+    return <span className="metrics-sort-arrow">{sortDir === 'asc' ? '▲' : '▼'}</span>
+  }
+
+  function headerButton(key: CompareSortKey, label: string) {
+    return (
+      <button type="button" className="metrics-sort-button" onClick={() => handleSort(key)}>
+        {label}
+        {sortIndicator(key)}
+      </button>
+    )
+  }
+
   return (
     <div className="view">
       <h1 className="view-title">About the models</h1>
@@ -271,6 +366,36 @@ export function ModelsPage() {
             {name}
           </span>
         ))}
+      </div>
+
+      <div className="card">
+        <div className="result-title">Model comparison</div>
+        <div className="table-wrapper" style={{ marginBottom: 0 }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>{headerButton('model', 'Model')}</th>
+                <th>{headerButton('year', 'Year')}</th>
+                <th>{headerButton('params', 'Parameters')}</th>
+                <th>{headerButton('layers', 'Layers')}</th>
+                <th>{headerButton('keyFeature', 'Key feature')}</th>
+                <th>{headerButton('activation', 'Activation')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedModels.map((model) => (
+                <tr key={model.key}>
+                  <td style={{ fontWeight: 500, color: model.accent }}>{model.label}</td>
+                  <td>{model.year}</td>
+                  <td>{specValue(model, 'Parameters')}</td>
+                  <td>{specValue(model, 'Layers')}</td>
+                  <td>{KEY_FEATURES[model.key] ?? '—'}</td>
+                  <td>{specValue(model, 'Activation')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
