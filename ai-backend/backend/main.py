@@ -31,6 +31,11 @@ app = FastAPI()
 SAVED_MODELS_DIR = "saved_models"
 os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 
+# load_dataset's SPLIT_SEED only makes the train/val split reproducible — weight init and
+# batch shuffling still draw from torch's global RNG, so without this "Rerun experiment"
+# would silently produce a different model every time.
+TRAINING_SEED = 42
+
 MNIST_CLASSES = [str(i) for i in range(10)]
 CIFAR10_CLASSES = [
     "airplane", "automobile", "bird", "cat", "deer",
@@ -219,6 +224,7 @@ def run_experiment(config: ExperimentConfig):
         config.dataset, config.training.batch_size
     )
 
+    torch.manual_seed(TRAINING_SEED)
     model = create_model(config.model, num_classes, in_channels, input_size)
     optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
@@ -267,6 +273,9 @@ def compare_models(config: CompareConfig):
 
     results = []
     for model_name in MODEL_NAMES:
+        # Reseed per model rather than once before the loop, so each architecture gets the
+        # same deterministic init/shuffle sequence regardless of its position in MODEL_NAMES.
+        torch.manual_seed(TRAINING_SEED)
         model = create_model(model_name, num_classes, in_channels, input_size)
         optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
