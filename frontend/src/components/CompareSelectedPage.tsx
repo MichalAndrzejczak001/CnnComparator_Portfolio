@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ApiError, compareExistingExperiments } from '../api/client'
 import type { DatasetName, ExperimentResponse } from '../types/api'
+import { AccuracyScatterChart } from './charts/AccuracyScatterChart'
+import { CalibrationChart, computeECE } from './charts/CalibrationChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
-import { computeConfusedPairs } from './charts/MostConfusedPairs'
+import { computeConfusedPairs, MostConfusedPairs } from './charts/MostConfusedPairs'
 import { MultiLineChart } from './charts/MultiLineChart'
 import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { RadarChart } from './charts/RadarChart'
@@ -47,6 +49,7 @@ interface Row {
   macroF1: number | null
   overfitGap: number | null
   bestEpochIndex: number | null
+  ece: number | null
 }
 
 type SortKey =
@@ -64,6 +67,7 @@ type SortKey =
   | 'overfitGap'
   | 'bestEpoch'
   | 'createdAt'
+  | 'ece'
 
 type SortDir = 'asc' | 'desc'
 
@@ -82,6 +86,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   overfitGap: 'asc',
   bestEpoch: 'asc',
   createdAt: 'desc',
+  ece: 'asc',
 }
 
 const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
@@ -94,9 +99,10 @@ const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
   inferenceLatency: 'lower',
   throughput: 'higher',
   overfitGap: 'lower',
+  ece: 'lower',
 }
 
-const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass'] as const
+const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass', 'calibration', 'confusedPairs'] as const
 type SectionKey = (typeof SECTION_KEYS)[number]
 
 const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
@@ -104,6 +110,8 @@ const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
   results: true,
   matrices: false,
   perClass: false,
+  calibration: false,
+  confusedPairs: false,
 }
 
 function getSortValue(row: Row, key: SortKey): number | string {
@@ -136,6 +144,8 @@ function getSortValue(row: Row, key: SortKey): number | string {
       return row.bestEpochIndex ?? -1
     case 'createdAt':
       return new Date(row.experiment.created_at).getTime()
+    case 'ece':
+      return row.ece ?? 1
   }
 }
 
@@ -199,6 +209,7 @@ export function CompareSelectedPage() {
           macroF1: macroAverage(computeMetrics(experiment.confusion_matrix, classLabels), 'f1'),
           overfitGap: computeOverfitGap(experiment.train_accuracy_per_epoch, experiment.val_accuracy_per_epoch),
           bestEpochIndex: computeBestEpoch(experiment.val_loss_per_epoch),
+          ece: experiment.calibration_curve ? computeECE(experiment.calibration_curve) : null,
         }
       })
   }, [results, excludedIds, colorByExperimentId])
@@ -261,7 +272,7 @@ export function CompareSelectedPage() {
   const allSectionsOpen = SECTION_KEYS.every((key) => openSections[key])
 
   function buildSummaryRows(): Record<string, unknown>[] {
-    return sortedRows.map(({ experiment, macroF1, overfitGap, bestEpochIndex }) => ({
+    return sortedRows.map(({ experiment, macroF1, overfitGap, bestEpochIndex, ece }) => ({
       ID: experiment.id,
       Model: MODEL_LABELS[experiment.model] ?? experiment.model,
       Dataset: DATASET_LABELS[experiment.dataset] ?? experiment.dataset,
@@ -278,6 +289,7 @@ export function CompareSelectedPage() {
       'Training throughput (img/s)': experiment.training_throughput_images_per_sec,
       'Overfitting gap (pp)': overfitGap !== null ? (overfitGap * 100).toFixed(2) : '',
       'Best epoch': bestEpochIndex !== null ? bestEpochIndex + 1 : '',
+      'ECE (%)': ece !== null ? (ece * 100).toFixed(2) : '',
       Note: experiment.note ?? '',
       'Model ID': experiment.model_id,
       'Created at': experiment.created_at,
@@ -370,6 +382,7 @@ export function CompareSelectedPage() {
   const latencyBestWorst = bestWorstIds(rows, (r) => r.experiment.inference_latency_ms, getRowId, false)
   const throughputBestWorst = bestWorstIds(rows, (r) => r.experiment.training_throughput_images_per_sec, getRowId, true)
   const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, getRowId, false)
+  const eceBestWorst = bestWorstIds(rows, (r) => r.ece, getRowId, false)
 
   function cellClass(id: number, bw: BestWorst<number>): string {
     if (id === bw.bestId) return 'compare-cell-best'
@@ -400,17 +413,39 @@ export function CompareSelectedPage() {
     ],
   }))
 
-  const lossSeries = rows.map((row) => ({
+  const accuracyTimePoints = rows.map((row) => ({
     label: seriesLabel(row.experiment),
     color: row.color,
-    values: row.experiment.val_loss_per_epoch,
+    accuracy: row.experiment.test_accuracy,
+    xValue: row.experiment.training_time_seconds,
   }))
 
-  const accuracySeries = rows.map((row) => ({
+  const accuracyParamsPoints = rows.map((row) => ({
     label: seriesLabel(row.experiment),
     color: row.color,
-    values: row.experiment.val_accuracy_per_epoch,
+    accuracy: row.experiment.test_accuracy,
+    xValue: row.experiment.param_count,
   }))
+
+  const lossSeries = rows.flatMap((row) => [
+    {
+      label: `${seriesLabel(row.experiment)} (train)`,
+      color: row.color,
+      values: row.experiment.train_loss_per_epoch,
+      dashed: true,
+    },
+    { label: seriesLabel(row.experiment), color: row.color, values: row.experiment.val_loss_per_epoch },
+  ])
+
+  const accuracySeries = rows.flatMap((row) => [
+    {
+      label: `${seriesLabel(row.experiment)} (train)`,
+      color: row.color,
+      values: row.experiment.train_accuracy_per_epoch,
+      dashed: true,
+    },
+    { label: seriesLabel(row.experiment), color: row.color, values: row.experiment.val_accuracy_per_epoch },
+  ])
 
   // Confusion matrices only make sense to compare within the same dataset — different
   // datasets have entirely different class labels, so group by dataset and only show
@@ -466,6 +501,18 @@ export function CompareSelectedPage() {
                 axes={['Accuracy', 'Low loss', 'Training speed', 'Inference speed', 'Compact']}
                 series={radarSeries}
               />
+              <AccuracyScatterChart
+                points={accuracyTimePoints}
+                title="Accuracy vs. training time"
+                xAxisLabel="Training time"
+                formatXValue={(v) => `${v.toFixed(0)}s`}
+              />
+              <AccuracyScatterChart
+                points={accuracyParamsPoints}
+                title="Accuracy vs. parameters"
+                xAxisLabel="Parameters"
+                formatXValue={formatParamCount}
+              />
               <MultiLineChart title="Validation loss" yLabel="Loss" series={lossSeries} formatValue={(v) => v.toFixed(3)} />
               <MultiLineChart
                 title="Validation accuracy"
@@ -493,13 +540,14 @@ export function CompareSelectedPage() {
                   <th>{headerButton('throughput', 'Throughput')}</th>
                   <th>{headerButton('overfitGap', 'Overfitting gap')}</th>
                   <th>{headerButton('bestEpoch', 'Best epoch')}</th>
+                  <th>{headerButton('ece', 'ECE')}</th>
                   <th>Note</th>
                   <th>{headerButton('createdAt', 'Created')}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.map(({ experiment, macroF1, overfitGap, bestEpochIndex }) => (
+                {sortedRows.map(({ experiment, macroF1, overfitGap, bestEpochIndex, ece }) => (
                   <tr key={experiment.id}>
                     <td>#{experiment.id}</td>
                     <td>{MODEL_LABELS[experiment.model] ?? experiment.model}</td>
@@ -531,6 +579,9 @@ export function CompareSelectedPage() {
                     </td>
                     <td>
                       {bestEpochIndex === null ? '—' : `${bestEpochIndex + 1} / ${experiment.val_loss_per_epoch.length}`}
+                    </td>
+                    <td className={cellClass(experiment.id, eceBestWorst)}>
+                      {ece === null ? '—' : `${(ece * 100).toFixed(1)}%`}
                     </td>
                     <td className="compare-note-cell" title={experiment.note || undefined}>
                       {experiment.note || '—'}
@@ -625,6 +676,47 @@ export function CompareSelectedPage() {
               )}
             </CollapsibleSection>
           )}
+
+          <CollapsibleSection
+            title="Calibration curves"
+            open={openSections.calibration}
+            onToggle={() => toggleSection('calibration')}
+          >
+            <div className="compare-matrix-row">
+              {rows.map((row) =>
+                row.experiment.calibration_curve && row.experiment.calibration_curve.length > 0 ? (
+                  <div key={row.experiment.id} className="compare-matrix-item">
+                    <span className="compare-matrix-item-label">
+                      <span className="chart-legend-swatch" style={{ background: row.color }} />
+                      {seriesLabel(row.experiment)}
+                    </span>
+                    <CalibrationChart bins={row.experiment.calibration_curve} width={320} height={220} />
+                  </div>
+                ) : null,
+              )}
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Most confused pairs"
+            open={openSections.confusedPairs}
+            onToggle={() => toggleSection('confusedPairs')}
+          >
+            <div className="compare-matrix-row">
+              {rows.map((row) => (
+                <div key={row.experiment.id} className="compare-matrix-item">
+                  <span className="compare-matrix-item-label">
+                    <span className="chart-legend-swatch" style={{ background: row.color }} />
+                    {seriesLabel(row.experiment)}
+                  </span>
+                  <MostConfusedPairs
+                    matrix={row.experiment.confusion_matrix}
+                    labels={DATASET_CLASS_LABELS[row.experiment.dataset]}
+                  />
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
         </>
       )}
     </div>
