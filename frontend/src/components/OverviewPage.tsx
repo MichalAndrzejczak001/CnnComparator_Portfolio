@@ -59,8 +59,10 @@ export function OverviewPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    listExperiments()
-      .then(setExperiments)
+    // Aggregate stats need the full history in one shot, not one paginated page — request a
+    // page large enough to cover realistic usage.
+    listExperiments({ size: 1000 })
+      .then((data) => setExperiments(data.content))
       .catch((err) => setError(err instanceof ApiError ? err.detail : 'Could not load overview.'))
   }, [])
 
@@ -175,12 +177,14 @@ export function OverviewPage() {
             </div>
             <ul className="overview-bar-list">
               {sortedEntries(modelCounts).map(([model, count]) => (
-                <li key={model} className="overview-bar-row">
-                  <span className="overview-bar-label">{MODEL_LABELS[model]}</span>
-                  <div className="metric-bar">
-                    <div className="metric-bar-fill" style={{ width: `${(count / maxModelCount) * 100}%` }} />
-                  </div>
-                  <span className="overview-bar-value">{count}</span>
+                <li key={model}>
+                  <Link to={`/dashboard?model=${model}`} className="overview-bar-row overview-bar-row-link">
+                    <span className="overview-bar-label">{MODEL_LABELS[model]}</span>
+                    <div className="metric-bar">
+                      <div className="metric-bar-fill" style={{ width: `${(count / maxModelCount) * 100}%` }} />
+                    </div>
+                    <span className="overview-bar-value">{count}</span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -192,12 +196,14 @@ export function OverviewPage() {
             </div>
             <ul className="overview-bar-list">
               {sortedEntries(datasetCounts).map(([dataset, count]) => (
-                <li key={dataset} className="overview-bar-row">
-                  <span className="overview-bar-label">{DATASET_LABELS[dataset]}</span>
-                  <div className="metric-bar">
-                    <div className="metric-bar-fill" style={{ width: `${(count / maxDatasetCount) * 100}%` }} />
-                  </div>
-                  <span className="overview-bar-value">{count}</span>
+                <li key={dataset}>
+                  <Link to={`/dashboard?dataset=${dataset}`} className="overview-bar-row overview-bar-row-link">
+                    <span className="overview-bar-label">{DATASET_LABELS[dataset]}</span>
+                    <div className="metric-bar">
+                      <div className="metric-bar-fill" style={{ width: `${(count / maxDatasetCount) * 100}%` }} />
+                    </div>
+                    <span className="overview-bar-value">{count}</span>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -10,9 +10,14 @@ import com.cnncomparator.dto.ExperimentResponse;
 import com.cnncomparator.dto.ExperimentSummaryResponse;
 import com.cnncomparator.dto.GradCamResponse;
 import com.cnncomparator.dto.NoteRequest;
+import com.cnncomparator.dto.PageResponse;
 import com.cnncomparator.dto.PredictResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -47,8 +52,13 @@ public class ExperimentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ExperimentSummaryResponse>> listExperiments(Authentication authentication) {
-        return ResponseEntity.ok(experimentService.listExperiments(authentication.getName()));
+    public ResponseEntity<PageResponse<ExperimentSummaryResponse>> listExperiments(
+            Authentication authentication,
+            @RequestParam(required = false) String model,
+            @RequestParam(required = false) String dataset,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<ExperimentSummaryResponse> page = experimentService.listExperiments(authentication.getName(), model, dataset, pageable);
+        return ResponseEntity.ok(PageResponse.from(page));
     }
 
     @GetMapping("/{id}")

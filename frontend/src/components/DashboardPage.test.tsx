@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
+import type { ExperimentSummaryResponse, PageResponse } from '../types/api'
+import type { ListExperimentsParams } from '../api/client'
 
 const { listExperiments, deleteExperiment } = vi.hoisted(() => ({
   listExperiments: vi.fn(),
@@ -14,28 +16,39 @@ vi.mock('../api/client', async () => {
   return { ...actual, listExperiments, deleteExperiment }
 })
 
-const EXPERIMENTS = [
+const EXPERIMENTS: ExperimentSummaryResponse[] = [
   {
     id: 1,
-    model: 'lenet5' as const,
-    dataset: 'mnist' as const,
+    model: 'lenet5',
+    dataset: 'mnist',
     test_accuracy: 0.9842,
     created_at: '2026-07-01T12:00:00Z',
     note: null,
   },
   {
     id: 2,
-    model: 'resnet18' as const,
-    dataset: 'cifar10' as const,
+    model: 'resnet18',
+    dataset: 'cifar10',
     test_accuracy: 0.8123,
     created_at: '2026-07-05T09:30:00Z',
     note: null,
   },
 ]
 
-function renderDashboard() {
+function toPage(content: ExperimentSummaryResponse[]): PageResponse<ExperimentSummaryResponse> {
+  return {
+    content,
+    page: 0,
+    size: 20,
+    total_elements: content.length,
+    total_pages: content.length === 0 ? 0 : 1,
+    last: true,
+  }
+}
+
+function renderDashboard(initialEntry = '/dashboard') {
   return render(
-    <MemoryRouter initialEntries={['/dashboard']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/dashboard/compare-selected" element={<div>Compare selected page</div>} />
@@ -50,7 +63,7 @@ describe('DashboardPage', () => {
   })
 
   it('renders the list of experiments once loaded', async () => {
-    listExperiments.mockResolvedValue(EXPERIMENTS)
+    listExperiments.mockResolvedValue(toPage(EXPERIMENTS))
 
     renderDashboard()
 
@@ -60,7 +73,7 @@ describe('DashboardPage', () => {
   })
 
   it('shows the empty state when there are no experiments', async () => {
-    listExperiments.mockResolvedValue([])
+    listExperiments.mockResolvedValue(toPage([]))
 
     renderDashboard()
 
@@ -69,11 +82,13 @@ describe('DashboardPage', () => {
 
   it('removes an experiment from the list after deleting it', async () => {
     const user = userEvent.setup()
-    listExperiments.mockResolvedValue(EXPERIMENTS)
+    listExperiments.mockResolvedValue(toPage(EXPERIMENTS))
     deleteExperiment.mockResolvedValue(undefined)
 
     renderDashboard()
     await screen.findByText('LeNet-5')
+
+    listExperiments.mockResolvedValue(toPage(EXPERIMENTS.filter((e) => e.id !== 1)))
 
     const card = screen.getByText('LeNet-5').closest('li')!
     await user.click(within(card).getByRole('button', { name: 'Delete' }))
@@ -84,7 +99,7 @@ describe('DashboardPage', () => {
 
   it('navigates to the compare-selected page with the chosen experiment ids', async () => {
     const user = userEvent.setup()
-    listExperiments.mockResolvedValue(EXPERIMENTS)
+    listExperiments.mockResolvedValue(toPage(EXPERIMENTS))
 
     renderDashboard()
     await screen.findByText('LeNet-5')
@@ -97,5 +112,28 @@ describe('DashboardPage', () => {
     await user.click(screen.getByRole('button', { name: 'Compare selected (2)' }))
 
     expect(await screen.findByText('Compare selected page')).toBeInTheDocument()
+  })
+
+  it('narrows the list to a single model when a model filter is in the URL', async () => {
+    listExperiments.mockImplementation((params: ListExperimentsParams = {}) =>
+      Promise.resolve(toPage(EXPERIMENTS.filter((e) => !params.model || e.model === params.model))),
+    )
+
+    renderDashboard('/dashboard?model=lenet5')
+
+    expect(await screen.findByText('LeNet-5')).toBeInTheDocument()
+    expect(screen.queryByText('ResNet18')).not.toBeInTheDocument()
+    expect(screen.getByText('Filtered by')).toBeInTheDocument()
+    expect(listExperiments).toHaveBeenCalledWith(expect.objectContaining({ model: 'lenet5' }))
+  })
+
+  it('shows a no-match message when the filter matches no experiments', async () => {
+    listExperiments.mockImplementation((params: ListExperimentsParams = {}) =>
+      Promise.resolve(toPage(EXPERIMENTS.filter((e) => !params.model || e.model === params.model))),
+    )
+
+    renderDashboard('/dashboard?model=vgg11')
+
+    expect(await screen.findByText('No experiments match this filter.')).toBeInTheDocument()
   })
 })

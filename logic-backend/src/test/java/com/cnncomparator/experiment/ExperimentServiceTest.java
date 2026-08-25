@@ -14,6 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
@@ -86,19 +90,20 @@ class ExperimentServiceTest {
 
     @Test
     void listExperimentsReturnsSummariesForOwner() {
-        Experiment experiment = Experiment.builder()
-                .id(10L).user(owner).model("lenet5").dataset("mnist")
-                .testAccuracy(0.85).createdAt(LocalDateTime.now()).note("note")
-                .build();
+        ExperimentSummaryResponse summary =
+                new ExperimentSummaryResponse(10L, "lenet5", "mnist", 0.85, LocalDateTime.now(), "note");
+        Pageable pageable = PageRequest.of(0, 20);
 
         when(userRepository.findByUsername("michal")).thenReturn(Optional.of(owner));
-        when(experimentRepository.findByUserOrderByCreatedAtDesc(owner)).thenReturn(List.of(experiment));
+        when(experimentRepository.findSummariesByUser(owner, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(summary), pageable, 1));
 
-        List<ExperimentSummaryResponse> result = experimentService.listExperiments("michal");
+        Page<ExperimentSummaryResponse> result = experimentService.listExperiments("michal", null, null, pageable);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).id()).isEqualTo(10L);
-        assertThat(result.get(0).model()).isEqualTo("lenet5");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).id()).isEqualTo(10L);
+        assertThat(result.getContent().get(0).model()).isEqualTo("lenet5");
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test

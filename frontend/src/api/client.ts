@@ -11,6 +11,7 @@ import type {
   GradCamResponse,
   LoginRequest,
   NoteRequest,
+  PageResponse,
   PredictResponse,
   ProblemDetail,
   RegisterRequest,
@@ -100,8 +101,24 @@ export function createExperiment(payload: ExperimentRequest): Promise<Experiment
   return request('/experiments', { method: 'POST', body: JSON.stringify(payload) })
 }
 
-export function listExperiments(): Promise<ExperimentSummaryResponse[]> {
-  return request('/experiments')
+export interface ListExperimentsParams {
+  page?: number
+  size?: number
+  model?: string
+  dataset?: string
+}
+
+export function listExperiments(
+  params: ListExperimentsParams = {},
+): Promise<PageResponse<ExperimentSummaryResponse>> {
+  const query = new URLSearchParams()
+  if (params.page !== undefined) query.set('page', String(params.page))
+  if (params.size !== undefined) query.set('size', String(params.size))
+  if (params.model) query.set('model', params.model)
+  if (params.dataset) query.set('dataset', params.dataset)
+
+  const queryString = query.toString()
+  return request(`/experiments${queryString ? `?${queryString}` : ''}`)
 }
 
 export function getExperiment(id: number): Promise<ExperimentResponse> {

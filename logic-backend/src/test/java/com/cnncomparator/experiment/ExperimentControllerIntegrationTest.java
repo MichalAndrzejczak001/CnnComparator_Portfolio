@@ -145,7 +145,8 @@ class ExperimentControllerIntegrationTest {
         mockMvc.perform(get("/experiments")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.total_elements").value(1))
                 .andExpect(content().string(matchesJsonSchemaInClasspath("schemas/experiment-summary-list.schema.json")));
 
         mockMvc.perform(get("/experiments/" + id)
@@ -160,6 +161,36 @@ class ExperimentControllerIntegrationTest {
         mockMvc.perform(get("/experiments/" + id)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Story("Happy path")
+    @Severity(SeverityLevel.NORMAL)
+    void listExperimentsSupportsPaginationAndModelFiltering() throws Exception {
+        String token = registerAndGetToken("paging_user");
+
+        createExperimentAndGetId(token);
+        mockMvc.perform(post("/experiments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"model":"lenet5","dataset":"mnist","training":{"epochs":1,"batch_size":16,"learning_rate":0.01}}
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/experiments").param("size", "1")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.total_elements").value(2))
+                .andExpect(jsonPath("$.total_pages").value(2))
+                .andExpect(jsonPath("$.last").value(false));
+
+        mockMvc.perform(get("/experiments").param("model", "lenet5")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].model").value("lenet5"));
     }
 
     @Test
@@ -317,7 +348,7 @@ class ExperimentControllerIntegrationTest {
         mockMvc.perform(get("/experiments")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.content.length()").value(2));
     }
 
     @Test

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, deleteExperiment, listExperiments } from '../api/client'
-import type { ExperimentSummaryResponse } from '../types/api'
+import type { ExperimentSummaryResponse, PageResponse } from '../types/api'
 import { NewExperimentModal } from './NewExperimentModal'
 
 const MODEL_LABELS: Record<string, string> = {
@@ -19,45 +19,66 @@ const DATASET_LABELS: Record<string, string> = {
   fashion_mnist: 'Fashion-MNIST',
 }
 
+const PAGE_SIZE = 20
+
 export function DashboardPage() {
   const navigate = useNavigate()
-  const [experiments, setExperiments] = useState<ExperimentSummaryResponse[] | null>(null)
+  const [searchParams] = useSearchParams()
+  // Set by the "Models used" / "Datasets used" bars on the Overview page, so clicking one
+  // lands here already narrowed down instead of dumping the user into the full list.
+  const modelFilter = searchParams.get('model')
+  const datasetFilter = searchParams.get('dataset')
+  const [pageData, setPageData] = useState<PageResponse<ExperimentSummaryResponse> | null>(null)
+  const [page, setPage] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [showNewExperiment, setShowNewExperiment] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [deletingSelected, setDeletingSelected] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
-  const loadExperiments = useCallback(async () => {
-    setError(null)
-    try {
-      const data = await listExperiments()
-      setExperiments(data)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.detail : 'Could not load experiments.')
-    }
-  }, [])
+  // A new filter may not have a page 2 at all — start back at the first page rather than
+  // risking an out-of-range request.
+  useEffect(() => {
+    setPage(0)
+  }, [modelFilter, datasetFilter])
+
+  const loadExperiments = useCallback(
+    async (targetPage: number) => {
+      setError(null)
+      try {
+        const data = await listExperiments({
+          page: targetPage,
+          size: PAGE_SIZE,
+          model: modelFilter ?? undefined,
+          dataset: datasetFilter ?? undefined,
+        })
+        // Deleting the last item(s) on a page can leave it empty even though earlier pages
+        // still have results — step back instead of showing a dead end.
+        if (data.content.length === 0 && targetPage > 0) {
+          setPage(targetPage - 1)
+          return
+        }
+        setPageData(data)
+        setSelectedIds(new Set())
+      } catch (err) {
+        setError(err instanceof ApiError ? err.detail : 'Could not load experiments.')
+      }
+    },
+    [modelFilter, datasetFilter],
+  )
 
   useEffect(() => {
-    loadExperiments()
-  }, [loadExperiments])
+    loadExperiments(page)
+  }, [loadExperiments, page])
 
-  const experimentNumbers = useMemo(() => {
-    const numbers = new Map<number, number>()
-    if (!experiments) {
-      return numbers
-    }
-    ;[...experiments]
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .forEach((experiment, index) => numbers.set(experiment.id, index + 1))
-    return numbers
-  }, [experiments])
+  const experiments = pageData?.content ?? null
+  const isFiltered = Boolean(modelFilter || datasetFilter)
 
   async function handleDelete(id: number) {
     setDeletingId(id)
     try {
       await deleteExperiment(id)
-      setExperiments((prev) => prev?.filter((experiment) => experiment.id !== id) ?? null)
+      await loadExperiments(page)
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : 'Could not delete experiment.')
     } finally {
@@ -100,7 +121,7 @@ export function DashboardPage() {
     const results = await Promise.allSettled(ids.map((id) => deleteExperiment(id)))
     const failedIds = new Set(ids.filter((_, index) => results[index].status === 'rejected'))
 
-    setExperiments((prev) => prev?.filter((experiment) => !ids.includes(experiment.id) || failedIds.has(experiment.id)) ?? null)
+    await loadExperiments(page)
     setSelectedIds(failedIds)
 
     if (failedIds.size > 0) {
@@ -125,11 +146,31 @@ export function DashboardPage() {
         This is your experiment history — review results, compare several at once, or rerun a training.
       </p>
 
+      {isFiltered && (
+        <p className="dashboard-filter-note">
+          <span>Filtered by</span>{' '}
+          {modelFilter && <strong>{MODEL_LABELS[modelFilter] ?? modelFilter}</strong>}
+          {modelFilter && datasetFilter && ' · '}
+          {datasetFilter && <strong>{DATASET_LABELS[datasetFilter] ?? datasetFilter}</strong>}
+          {' — '}
+          <Link to="/dashboard">Clear filter</Link>
+        </p>
+      )}
+
       {error && <p className="form-error">{error}</p>}
 
-      {experiments === null && !error && <p>Loading experiments…</p>}
+      {pageData === null && !error && <p>Loading experiments…</p>}
 
-      {experiments?.length === 0 && <p>No experiments yet. Train your first model to get started.</p>}
+      {pageData && pageData.total_elements === 0 && !isFiltered && (
+        <p>No experiments yet. Train your first model to get started.</p>
+      )}
+
+      {pageData && pageData.total_elements === 0 && isFiltered && (
+        <p>
+          <span>No experiments match this filter.</span> <Link to="/dashboard">Clear filter</Link> to see all
+          experiments.
+        </p>
+      )}
 
       {experiments && experiments.length > 0 && (
         <>
@@ -162,7 +203,7 @@ export function DashboardPage() {
                 if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < experiments.length
               }}
               onChange={toggleSelectAll}
-              aria-label="Select all experiments"
+              aria-label="Select all experiments on this page"
             />
             <span className="experiment-header-grid">
               <span>Nr</span>
@@ -179,7 +220,7 @@ export function DashboardPage() {
           </div>
 
           <ul className="experiment-list">
-            {experiments.map((experiment) => (
+            {experiments.map((experiment, index) => (
               <li key={experiment.id} className="card experiment-card">
                 <input
                   type="checkbox"
@@ -189,7 +230,7 @@ export function DashboardPage() {
                   aria-label={`Select ${MODEL_LABELS[experiment.model] ?? experiment.model} for comparison`}
                 />
                 <Link to={`/dashboard/experiments/${experiment.id}`} className="experiment-card-link">
-                  <span className="experiment-number">{experimentNumbers.get(experiment.id)}</span>
+                  <span className="experiment-number">{(pageData?.page ?? 0) * (pageData?.size ?? PAGE_SIZE) + index + 1}</span>
                   <span className="experiment-id">#{experiment.id}</span>
                   <span className="experiment-model">{MODEL_LABELS[experiment.model] ?? experiment.model}</span>
                   <span className="experiment-dataset">{DATASET_LABELS[experiment.dataset] ?? experiment.dataset}</span>
@@ -208,6 +249,31 @@ export function DashboardPage() {
               </li>
             ))}
           </ul>
+
+          {pageData && pageData.total_pages > 1 && (
+            <div className="dashboard-pagination">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                disabled={pageData.page === 0}
+              >
+                Previous
+              </button>
+              <span>
+                Page {pageData.page + 1} of {pageData.total_pages} ({pageData.total_elements} experiment
+                {pageData.total_elements === 1 ? '' : 's'})
+              </span>
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => setPage((prev) => prev + 1)}
+                disabled={pageData.last}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -216,7 +282,8 @@ export function DashboardPage() {
           onClose={() => setShowNewExperiment(false)}
           onCreated={() => {
             setShowNewExperiment(false)
-            loadExperiments()
+            setPage(0)
+            loadExperiments(0)
           }}
         />
       )}

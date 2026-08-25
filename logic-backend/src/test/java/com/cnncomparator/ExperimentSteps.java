@@ -89,7 +89,7 @@ public class ExperimentSteps {
 
     @Then("my experiment list should contain {int} experiment")
     public void myExperimentListShouldContainExperiment(int expectedCount) throws Exception {
-        List<Object> experiments = scenarioContext.readLastResponse("$");
+        List<Object> experiments = scenarioContext.readLastResponse("$.content");
         assertThat(experiments).hasSize(expectedCount);
     }
 

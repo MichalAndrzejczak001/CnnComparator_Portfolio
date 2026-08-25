@@ -90,7 +90,7 @@ class ExperimentBlackBoxTest extends BlackBoxTestSupport {
         .then()
                 .statusCode(200)
                 .body(matchesJsonSchemaInClasspath("schemas/experiment-summary-list.schema.json"))
-                .body("id", org.hamcrest.Matchers.hasItem(((Long) experimentId).intValue()));
+                .body("content.id", org.hamcrest.Matchers.hasItem(((Long) experimentId).intValue()));
     }
 
     @Test

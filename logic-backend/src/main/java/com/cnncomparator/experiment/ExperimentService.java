@@ -13,6 +13,8 @@ import com.cnncomparator.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -85,12 +87,9 @@ public class ExperimentService {
     }
 
     @Transactional(readOnly = true)
-    public List<ExperimentSummaryResponse> listExperiments(String username) {
+    public Page<ExperimentSummaryResponse> listExperiments(String username, String model, String dataset, Pageable pageable) {
         User user = findUser(username);
-
-        return experimentRepository.findByUserOrderByCreatedAtDesc(user).stream()
-                .map(this::toSummary)
-                .toList();
+        return experimentRepository.findSummariesByUser(user, model, dataset, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -219,12 +218,6 @@ public class ExperimentService {
                 e.getInferenceLatencyMs() != null ? e.getInferenceLatencyMs() : 0.0,
                 e.getTrainingThroughputImagesPerSec() != null ? e.getTrainingThroughputImagesPerSec() : 0.0,
                 e.getCalibrationCurve()
-        );
-    }
-
-    private ExperimentSummaryResponse toSummary(Experiment e) {
-        return new ExperimentSummaryResponse(
-                e.getId(), e.getModel(), e.getDataset(), e.getTestAccuracy(), e.getCreatedAt(), e.getNote()
         );
     }
 }

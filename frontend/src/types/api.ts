@@ -78,6 +78,15 @@ export interface ExperimentSummaryResponse {
   note: string | null
 }
 
+export interface PageResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  total_elements: number
+  total_pages: number
+  last: boolean
+}
+
 export interface CompareRequest {
   dataset: DatasetName
   training: TrainingConfig
