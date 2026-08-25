@@ -1748,6 +1748,12 @@ input[type='file'] {
   flex-wrap: wrap;
 }
 
+.dataset-try-link {
+  display: inline-block;
+  margin-top: var(--space-4);
+  text-decoration: none;
+}
+
 .dataset-sample {
   display: flex;
   flex-direction: column;

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 const CELL = 6
 
 const DIGIT_1: number[][] = [
@@ -223,6 +225,10 @@ export function DatasetsPage() {
             <PixelSample pixels={DIGIT_7} label="digit 7" />
             <PixelSample pixels={DIGIT_3} label="digit 3" />
           </div>
+
+          <Link to="/dashboard/compare?dataset=mnist" className="btn-outline dataset-try-link">
+            Try MNIST →
+          </Link>
         </div>
 
         <div className="dataset-card">
@@ -280,6 +286,10 @@ export function DatasetsPage() {
               <div className="dataset-sample-label">bag</div>
             </div>
           </div>
+
+          <Link to="/dashboard/compare?dataset=fashion_mnist" className="btn-outline dataset-try-link">
+            Try Fashion-MNIST →
+          </Link>
         </div>
 
         <div className="dataset-card">
@@ -337,6 +347,10 @@ export function DatasetsPage() {
               <div className="dataset-sample-label">frog</div>
             </div>
           </div>
+
+          <Link to="/dashboard/compare?dataset=cifar10" className="btn-outline dataset-try-link">
+            Try CIFAR-10 →
+          </Link>
         </div>
       </div>
 

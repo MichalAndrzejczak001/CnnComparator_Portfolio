@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ApiError, getCompareJob, startCompareJob } from '../api/client'
 import type { CompareJobStatus, CompareResponse, CompareResultItem, DatasetName, ModelName } from '../types/api'
 import { AccuracyScatterChart } from './charts/AccuracyScatterChart'
@@ -191,7 +192,13 @@ const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
 }
 
 export function ComparePage() {
-  const [dataset, setDataset] = useState<DatasetName>('mnist')
+  const [searchParams] = useSearchParams()
+  // Lets DatasetsPage's "Try this dataset" links (/dashboard/compare?dataset=cifar10) land with
+  // the right dataset pre-selected instead of always starting from MNIST.
+  const [dataset, setDataset] = useState<DatasetName>(() => {
+    const requested = searchParams.get('dataset')
+    return DATASET_OPTIONS.some((option) => option.value === requested) ? (requested as DatasetName) : 'mnist'
+  })
   const [epochs, setEpochs] = useState(5)
   const [batchSize, setBatchSize] = useState(64)
   const [learningRate, setLearningRate] = useState(0.001)
