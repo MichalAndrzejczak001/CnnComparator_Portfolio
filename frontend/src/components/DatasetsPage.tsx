@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const CELL = 6
@@ -161,18 +162,159 @@ const FASHION_CLASSES = [
 
 const CIFAR_CLASSES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
 
-const COMPARE_ROWS: [string, string, string, string][] = [
-  ['Classes', '10 (digits 0–9)', '10 (clothing items)', '10 (objects)'],
-  ['Image size', '28×28 px', '28×28 px', '32×32 px'],
-  ['Channels', '1 (grayscale)', '1 (grayscale)', '3 (RGB)'],
-  ['Training set', '60,000', '60,000', '50,000'],
-  ['Test set', '10,000', '10,000', '10,000'],
-  ['Total', '70,000', '70,000', '60,000'],
-  ['Difficulty', 'Easy', 'Medium', 'Medium / hard'],
-  ['SimpleCNN — typical accuracy', '~98–99%', '~90–92%', '~65–75%'],
+interface DatasetCompareRow {
+  key: string
+  label: string
+  accent: string
+  classes: string
+  imageSize: string
+  channels: string
+  trainingSet: number
+  testSet: number
+  total: number
+  difficulty: string
+  difficultyRank: number
+  typicalAccuracy: string
+}
+
+const DATASET_COMPARE_DATA: DatasetCompareRow[] = [
+  {
+    key: 'mnist',
+    label: 'MNIST',
+    accent: '#4f86f7',
+    classes: '10 (digits 0–9)',
+    imageSize: '28×28 px',
+    channels: '1 (grayscale)',
+    trainingSet: 60_000,
+    testSet: 10_000,
+    total: 70_000,
+    difficulty: 'Easy',
+    difficultyRank: 1,
+    typicalAccuracy: '~98–99%',
+  },
+  {
+    key: 'fashion_mnist',
+    label: 'Fashion-MNIST',
+    accent: '#34d399',
+    classes: '10 (clothing items)',
+    imageSize: '28×28 px',
+    channels: '1 (grayscale)',
+    trainingSet: 60_000,
+    testSet: 10_000,
+    total: 70_000,
+    difficulty: 'Medium',
+    difficultyRank: 2,
+    typicalAccuracy: '~90–92%',
+  },
+  {
+    key: 'cifar10',
+    label: 'CIFAR-10',
+    accent: '#a78bfa',
+    classes: '10 (objects)',
+    imageSize: '32×32 px',
+    channels: '3 (RGB)',
+    trainingSet: 50_000,
+    testSet: 10_000,
+    total: 60_000,
+    difficulty: 'Medium / hard',
+    difficultyRank: 3,
+    typicalAccuracy: '~65–75%',
+  },
 ]
 
+type DatasetSortKey =
+  | 'dataset'
+  | 'classes'
+  | 'imageSize'
+  | 'channels'
+  | 'trainingSet'
+  | 'testSet'
+  | 'total'
+  | 'difficulty'
+  | 'typicalAccuracy'
+type SortDir = 'asc' | 'desc'
+
+const DATASET_DEFAULT_DIR: Record<DatasetSortKey, SortDir> = {
+  dataset: 'asc',
+  classes: 'asc',
+  imageSize: 'asc',
+  channels: 'asc',
+  trainingSet: 'desc',
+  testSet: 'desc',
+  total: 'desc',
+  difficulty: 'asc',
+  typicalAccuracy: 'desc',
+}
+
+// Leading-number extraction (same approach as the models page): sorts by the number already
+// visible in the cell — image size in px, channel count, the lower bound of an accuracy range
+// — instead of maintaining a second, separately-tracked numeric field per row.
+function parseLeadingNumber(text: string): number {
+  const match = text.replace('~', '').match(/^([\d.]+)/)
+  return match ? parseFloat(match[1]) : 0
+}
+
+function getDatasetSortValue(row: DatasetCompareRow, key: DatasetSortKey): number | string {
+  switch (key) {
+    case 'dataset':
+      return row.label
+    case 'classes':
+      return parseLeadingNumber(row.classes)
+    case 'imageSize':
+      return parseLeadingNumber(row.imageSize)
+    case 'channels':
+      return parseLeadingNumber(row.channels)
+    case 'trainingSet':
+      return row.trainingSet
+    case 'testSet':
+      return row.testSet
+    case 'total':
+      return row.total
+    case 'difficulty':
+      return row.difficultyRank
+    case 'typicalAccuracy':
+      return parseLeadingNumber(row.typicalAccuracy)
+  }
+}
+
 export function DatasetsPage() {
+  const [sortKey, setSortKey] = useState<DatasetSortKey>('dataset')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const sortedDatasets = useMemo(() => {
+    const copy = [...DATASET_COMPARE_DATA]
+    copy.sort((a, b) => {
+      const av = getDatasetSortValue(a, sortKey)
+      const bv = getDatasetSortValue(b, sortKey)
+      const cmp = typeof av === 'string' || typeof bv === 'string' ? String(av).localeCompare(String(bv)) : av - bv
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [sortKey, sortDir])
+
+  function handleSort(key: DatasetSortKey) {
+    if (key === sortKey) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(DATASET_DEFAULT_DIR[key])
+    }
+  }
+
+  function sortIndicator(key: DatasetSortKey) {
+    if (key !== sortKey) return null
+    return <span className="metrics-sort-arrow">{sortDir === 'asc' ? '▲' : '▼'}</span>
+  }
+
+  function headerButton(key: DatasetSortKey, label: string) {
+    return (
+      <button type="button" className="metrics-sort-button" onClick={() => handleSort(key)}>
+        {label}
+        {sortIndicator(key)}
+      </button>
+    )
+  }
+
   return (
     <div className="view">
       <h1 className="view-title">About the datasets</h1>
@@ -360,21 +502,29 @@ export function DatasetsPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Feature</th>
-                <th>MNIST</th>
-                <th>Fashion-MNIST</th>
-                <th>CIFAR-10</th>
+                <th>{headerButton('dataset', 'Dataset')}</th>
+                <th>{headerButton('classes', 'Classes')}</th>
+                <th>{headerButton('imageSize', 'Image size')}</th>
+                <th>{headerButton('channels', 'Channels')}</th>
+                <th>{headerButton('trainingSet', 'Training set')}</th>
+                <th>{headerButton('testSet', 'Test set')}</th>
+                <th>{headerButton('total', 'Total')}</th>
+                <th>{headerButton('difficulty', 'Difficulty')}</th>
+                <th>{headerButton('typicalAccuracy', 'SimpleCNN — typical accuracy')}</th>
               </tr>
             </thead>
             <tbody>
-              {COMPARE_ROWS.map(([feature, mnist, fashion, cifar]) => (
-                <tr key={feature}>
-                  <td className="text-muted" style={{ fontWeight: 500 }}>
-                    {feature}
-                  </td>
-                  <td>{mnist}</td>
-                  <td>{fashion}</td>
-                  <td>{cifar}</td>
+              {sortedDatasets.map((row) => (
+                <tr key={row.key}>
+                  <td style={{ fontWeight: 500, color: row.accent }}>{row.label}</td>
+                  <td>{row.classes}</td>
+                  <td>{row.imageSize}</td>
+                  <td>{row.channels}</td>
+                  <td>{row.trainingSet.toLocaleString()}</td>
+                  <td>{row.testSet.toLocaleString()}</td>
+                  <td>{row.total.toLocaleString()}</td>
+                  <td>{row.difficulty}</td>
+                  <td>{row.typicalAccuracy}</td>
                 </tr>
               ))}
             </tbody>
