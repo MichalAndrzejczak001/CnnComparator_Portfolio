@@ -5,7 +5,7 @@ import { AccuracyScatterChart } from './charts/AccuracyScatterChart'
 import { CalibrationChart } from './charts/CalibrationChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
-import { computeConfusedPairs } from './charts/MostConfusedPairs'
+import { computeConfusedPairs, MostConfusedPairs } from './charts/MostConfusedPairs'
 import { MultiLineChart } from './charts/MultiLineChart'
 import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { RadarChart } from './charts/RadarChart'
@@ -166,7 +166,7 @@ function getSortValue(row: Row, key: SortKey): number | string {
   }
 }
 
-const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass', 'calibration'] as const
+const SECTION_KEYS = ['charts', 'results', 'matrices', 'perClass', 'calibration', 'confusedPairs'] as const
 type SectionKey = (typeof SECTION_KEYS)[number]
 
 const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
@@ -175,6 +175,7 @@ const DEFAULT_OPEN_SECTIONS: Record<SectionKey, boolean> = {
   matrices: false,
   perClass: false,
   calibration: false,
+  confusedPairs: false,
 }
 
 export function ComparePage() {
@@ -389,17 +390,25 @@ export function ComparePage() {
     xValue: row.item.param_count,
   }))
 
-  const lossSeries = rows.map((row) => ({
-    label: MODEL_LABELS[row.item.model],
-    color: row.color,
-    values: row.item.val_loss_per_epoch,
-  }))
+  const lossSeries = rows.flatMap((row) => [
+    {
+      label: `${MODEL_LABELS[row.item.model]} (train)`,
+      color: row.color,
+      values: row.item.train_loss_per_epoch,
+      dashed: true,
+    },
+    { label: MODEL_LABELS[row.item.model], color: row.color, values: row.item.val_loss_per_epoch },
+  ])
 
-  const accuracySeries = rows.map((row) => ({
-    label: MODEL_LABELS[row.item.model],
-    color: row.color,
-    values: row.item.val_accuracy_per_epoch,
-  }))
+  const accuracySeries = rows.flatMap((row) => [
+    {
+      label: `${MODEL_LABELS[row.item.model]} (train)`,
+      color: row.color,
+      values: row.item.train_accuracy_per_epoch,
+      dashed: true,
+    },
+    { label: MODEL_LABELS[row.item.model], color: row.color, values: row.item.val_accuracy_per_epoch },
+  ])
 
   function buildSummaryRows(): Record<string, unknown>[] {
     return sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex }) => ({
@@ -726,6 +735,27 @@ export function ComparePage() {
                   </div>
                 ) : null,
               )}
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Most confused pairs"
+            open={openSections.confusedPairs}
+            onToggle={() => toggleSection('confusedPairs')}
+          >
+            <div className="compare-matrix-row">
+              {rows.map((row) => (
+                <div key={row.item.model} className="compare-matrix-item">
+                  <span className="compare-matrix-item-label">
+                    <span className="chart-legend-swatch" style={{ background: row.color }} />
+                    {MODEL_LABELS[row.item.model]}
+                  </span>
+                  <MostConfusedPairs
+                    matrix={row.item.confusion_matrix}
+                    labels={DATASET_CLASS_LABELS[result.dataset]}
+                  />
+                </div>
+              ))}
             </div>
           </CollapsibleSection>
         </div>

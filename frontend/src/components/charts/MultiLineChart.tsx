@@ -4,6 +4,9 @@ interface LineSeries {
   label: string
   color: string
   values: number[]
+  // Rendered as a dashed line and left out of the legend (its solid counterpart, same
+  // color, represents the pair there) — used for overlaying a train curve on a validation one.
+  dashed?: boolean
 }
 
 interface MultiLineChartProps {
@@ -88,18 +91,24 @@ export function MultiLineChart({
 
   const tooltipX = activeIndex !== null ? xForIndex(activeIndex) : 0
   const tooltipLeft = Math.min(Math.max(tooltipX, 80), width - 80)
+  const hasDashedSeries = series.some((s) => s.dashed)
 
   return (
     <div className="chart-block">
       <div className="chart-header">
         <h3 className="chart-title">{title}</h3>
         <ul className="chart-legend">
-          {series.map((s) => (
-            <li key={s.label} className="chart-legend-item">
-              <span className="chart-legend-swatch" style={{ background: s.color }} />
-              {s.label}
-            </li>
-          ))}
+          {series
+            .filter((s) => !s.dashed)
+            .map((s) => (
+              <li key={s.label} className="chart-legend-item">
+                <span className="chart-legend-swatch" style={{ background: s.color }} />
+                {s.label}
+              </li>
+            ))}
+          {hasDashedSeries && (
+            <li className="chart-legend-item chart-legend-hint">(solid = validation, dashed = train)</li>
+          )}
         </ul>
       </div>
 
@@ -191,6 +200,8 @@ export function MultiLineChart({
               strokeWidth={2}
               strokeLinejoin="round"
               strokeLinecap="round"
+              strokeDasharray={s.dashed ? '5 4' : undefined}
+              opacity={s.dashed ? 0.6 : 1}
             />
           ))}
 
