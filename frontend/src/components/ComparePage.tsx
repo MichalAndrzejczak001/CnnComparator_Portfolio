@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getCompareJob, startCompareJob } from '../api/client'
 import type { CompareJobStatus, CompareResponse, CompareResultItem, DatasetName, ModelName } from '../types/api'
 import { AccuracyScatterChart } from './charts/AccuracyScatterChart'
-import { CalibrationChart } from './charts/CalibrationChart'
+import { CalibrationChart, computeECE } from './charts/CalibrationChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { computeConfusedPairs, MostConfusedPairs } from './charts/MostConfusedPairs'
@@ -102,6 +102,7 @@ interface Row {
   macroF1: number | null
   bestEpochIndex: number | null
   overfitGap: number | null
+  ece: number | null
 }
 
 type SortKey =
@@ -115,6 +116,7 @@ type SortKey =
   | 'throughput'
   | 'overfitGap'
   | 'bestEpoch'
+  | 'ece'
 type SortDir = 'asc' | 'desc'
 
 const DEFAULT_DIR: Record<SortKey, SortDir> = {
@@ -128,6 +130,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   throughput: 'desc',
   overfitGap: 'asc',
   bestEpoch: 'asc',
+  ece: 'asc',
 }
 
 const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
@@ -139,6 +142,7 @@ const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
   inferenceLatency: 'lower',
   throughput: 'higher',
   overfitGap: 'lower',
+  ece: 'lower',
 }
 
 function getSortValue(row: Row, key: SortKey): number | string {
@@ -163,6 +167,8 @@ function getSortValue(row: Row, key: SortKey): number | string {
       return row.overfitGap ?? 0
     case 'bestEpoch':
       return row.bestEpochIndex ?? -1
+    case 'ece':
+      return row.ece ?? 1
   }
 }
 
@@ -288,6 +294,7 @@ export function ComparePage() {
       macroF1: macroAverage(computeMetrics(item.confusion_matrix, classLabels), 'f1'),
       bestEpochIndex: computeBestEpoch(item.val_loss_per_epoch),
       overfitGap: computeOverfitGap(item.train_accuracy_per_epoch, item.val_accuracy_per_epoch),
+      ece: item.calibration_curve ? computeECE(item.calibration_curve) : null,
     }))
   }, [result])
 
@@ -350,6 +357,7 @@ export function ComparePage() {
   const latencyBestWorst = bestWorstIds(rows, (r) => r.item.inference_latency_ms, getRowId, false)
   const throughputBestWorst = bestWorstIds(rows, (r) => r.item.training_throughput_images_per_sec, getRowId, true)
   const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, getRowId, false)
+  const eceBestWorst = bestWorstIds(rows, (r) => r.ece, getRowId, false)
 
   function cellClass(model: ModelName, bw: BestWorst<ModelName>): string {
     if (model === bw.bestId) return 'compare-cell-best'
@@ -411,7 +419,7 @@ export function ComparePage() {
   ])
 
   function buildSummaryRows(): Record<string, unknown>[] {
-    return sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex }) => ({
+    return sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex, ece }) => ({
       Model: MODEL_LABELS[item.model],
       Dataset: result ? DATASET_LABELS[result.dataset] : '',
       Epochs: result?.epochs ?? '',
@@ -424,6 +432,7 @@ export function ComparePage() {
       'Training throughput (img/s)': item.training_throughput_images_per_sec,
       'Overfitting gap (pp)': overfitGap !== null ? (overfitGap * 100).toFixed(2) : '',
       'Best epoch': bestEpochIndex !== null ? bestEpochIndex + 1 : '',
+      'ECE (%)': ece !== null ? (ece * 100).toFixed(2) : '',
     }))
   }
 
@@ -646,10 +655,11 @@ export function ComparePage() {
                   <th>{headerButton('throughput', 'Throughput')}</th>
                   <th>{headerButton('overfitGap', 'Overfitting gap')}</th>
                   <th>{headerButton('bestEpoch', 'Best epoch')}</th>
+                  <th>{headerButton('ece', 'ECE')}</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex }) => (
+                {sortedRows.map(({ item, macroF1, overfitGap, bestEpochIndex, ece }) => (
                   <tr key={item.model}>
                     <td>{MODEL_LABELS[item.model]}</td>
                     <td className={cellClass(item.model, accuracyBestWorst)}>{(item.test_accuracy * 100).toFixed(2)}%</td>
@@ -668,6 +678,9 @@ export function ComparePage() {
                     </td>
                     <td>
                       {bestEpochIndex === null ? '—' : `${bestEpochIndex + 1} / ${item.val_loss_per_epoch.length}`}
+                    </td>
+                    <td className={cellClass(item.model, eceBestWorst)}>
+                      {ece === null ? '—' : `${(ece * 100).toFixed(1)}%`}
                     </td>
                   </tr>
                 ))}

@@ -21,7 +21,23 @@ function formatPercentTick(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
+// Expected Calibration Error: the count-weighted average gap between a bin's accuracy and
+// its average predicted confidence — a single number summarizing how well "confidence" tracks
+// actual correctness across the whole reliability diagram. Lower is better; 0 is perfect.
+export function computeECE(bins: CalibrationBin[]): number | null {
+  const totalCount = bins.reduce((sum, bin) => sum + bin.count, 0)
+  if (totalCount === 0) return null
+
+  const weightedError = bins.reduce((sum, bin) => {
+    if (bin.count === 0 || bin.accuracy === null || bin.avg_confidence === null) return sum
+    return sum + (bin.count / totalCount) * Math.abs(bin.accuracy - bin.avg_confidence)
+  }, 0)
+
+  return weightedError
+}
+
 export function CalibrationChart({ bins, width = 480, height = 280 }: CalibrationChartProps) {
+  const ece = computeECE(bins)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
@@ -64,7 +80,10 @@ export function CalibrationChart({ bins, width = 480, height = 280 }: Calibratio
   return (
     <div className="chart-block">
       <div className="chart-header">
-        <h3 className="chart-title">Calibration curve</h3>
+        <h3 className="chart-title">
+          Calibration curve
+          {ece !== null && <span className="chart-title-stat">ECE {(ece * 100).toFixed(1)}%</span>}
+        </h3>
         <ul className="chart-legend">
           <li className="chart-legend-item">
             <span className="chart-legend-swatch" style={{ background: ACCURACY_COLOR }} />

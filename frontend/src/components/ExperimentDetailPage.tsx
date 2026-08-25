@@ -5,7 +5,7 @@ import type { DatasetName, ExperimentResponse } from '../types/api'
 import { AugmentModal } from './AugmentModal'
 import { ClassifyImageModal } from './ClassifyImageModal'
 import { AccuracyChart } from './charts/AccuracyChart'
-import { CalibrationChart } from './charts/CalibrationChart'
+import { CalibrationChart, computeECE } from './charts/CalibrationChart'
 import { CollapsibleSection } from './CollapsibleSection'
 import { ConfusionMatrix } from './charts/ConfusionMatrix'
 import { DrawDigitModal } from './DrawDigitModal'
@@ -194,11 +194,12 @@ export function ExperimentDetailPage() {
   const overfitSeverityLevel = overfitGap === null ? null : overfitSeverity(overfitGap)
   const bestEpochIndex = computeBestEpoch(experiment.val_loss_per_epoch)
   const epochsPastBest = bestEpochIndex === null ? null : experiment.val_loss_per_epoch.length - 1 - bestEpochIndex
+  const ece = experiment.calibration_curve ? computeECE(experiment.calibration_curve) : null
 
   const currentExperiment = experiment
 
   function handleExport() {
-    const csv = buildExperimentCsv(currentExperiment, classLabels, { macroF1, overfitGap, bestEpochIndex })
+    const csv = buildExperimentCsv(currentExperiment, classLabels, { macroF1, overfitGap, bestEpochIndex, ece })
     downloadCsvText(`experiment-${currentExperiment.id}.csv`, csv)
   }
 
@@ -422,9 +423,11 @@ export function ExperimentDetailPage() {
           <button type="button" className="btn-primary" onClick={() => setActiveModal('gradcam')}>
             Grad-CAM
           </button>
-          <button type="button" className="btn-primary" onClick={() => setActiveModal('draw')}>
-            Draw a digit
-          </button>
+          {experiment.dataset === 'mnist' && (
+            <button type="button" className="btn-primary" onClick={() => setActiveModal('draw')}>
+              Draw a digit
+            </button>
+          )}
           <button type="button" className="btn-outline" onClick={() => setActiveModal('augment')}>
             Augment image
           </button>

@@ -42,6 +42,7 @@ describe('buildExperimentCsv', () => {
       macroF1: 0.85,
       overfitGap: 0.05,
       bestEpochIndex: 1,
+      ece: 0.032,
     })
 
     expect(csv).toContain('Summary')
@@ -58,6 +59,7 @@ describe('buildExperimentCsv', () => {
       macroF1: 0.85,
       overfitGap: 0.05,
       bestEpochIndex: 1,
+      ece: 0.032,
     })
 
     expect(csv).toContain('Experiment ID,42')
@@ -65,6 +67,7 @@ describe('buildExperimentCsv', () => {
     expect(csv).toContain('Test accuracy (%),91.00')
     expect(csv).toContain('Macro F1 (%),85.00')
     expect(csv).toContain('Parameters,62006')
+    expect(csv).toContain('Expected Calibration Error (%),3.20')
   })
 
   it('does not leak the base64 gradcam image into the sample predictions section', () => {
@@ -72,6 +75,7 @@ describe('buildExperimentCsv', () => {
       macroF1: null,
       overfitGap: null,
       bestEpochIndex: null,
+      ece: null,
     })
 
     expect(csv).not.toContain('base64...')
@@ -82,6 +86,7 @@ describe('buildExperimentCsv', () => {
       macroF1: null,
       overfitGap: null,
       bestEpochIndex: null,
+      ece: null,
     })
 
     expect(csv).toContain('Calibration curve\n(no data)')

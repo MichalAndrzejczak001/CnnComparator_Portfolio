@@ -7,6 +7,7 @@ interface SummaryExtras {
   macroF1: number | null
   overfitGap: number | null
   bestEpochIndex: number | null
+  ece: number | null
 }
 
 function formatPercent(value: number | null | undefined): string {
@@ -30,6 +31,7 @@ function buildSummaryRows(experiment: ExperimentResponse, extras: SummaryExtras)
     { Metric: 'Training throughput (img/s)', Value: experiment.training_throughput_images_per_sec },
     { Metric: 'Overfitting gap (pp)', Value: formatPercent(extras.overfitGap) },
     { Metric: 'Best epoch (val loss)', Value: extras.bestEpochIndex !== null ? extras.bestEpochIndex + 1 : '' },
+    { Metric: 'Expected Calibration Error (%)', Value: formatPercent(extras.ece) },
     { Metric: 'Note', Value: experiment.note ?? '' },
     { Metric: 'Model ID', Value: experiment.model_id },
     { Metric: 'Created at', Value: experiment.created_at },
