@@ -5,6 +5,7 @@ import com.cnncomparator.dto.CompareRequest;
 import com.cnncomparator.dto.CompareResultItem;
 import com.cnncomparator.dto.ExperimentRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CompareJobService {
 
     private static final List<String> MODEL_NAMES =
@@ -113,6 +115,7 @@ public class CompareJobService {
             job.setCurrentModel(null);
             job.setStatus(CompareJob.Status.COMPLETED);
         } catch (Exception e) {
+            log.error("Compare job {} failed", job.getId(), e);
             job.setError(e.getMessage() != null ? e.getMessage() : "Unexpected error occurred");
             job.setStatus(CompareJob.Status.FAILED);
         }
