@@ -52,7 +52,7 @@ const MODELS_DATA: ModelData[] = [
       { label: 'FC 10', type: 'fc', note: 'output' },
     ],
     specs: [
-      { label: 'Parameters', value: '~200K' },
+      { label: 'Parameters', value: '225K–316K' },
       { label: 'Layers', value: '4' },
       { label: 'Filters', value: '32 / 64' },
       { label: 'Activation', value: 'ReLU' },
@@ -78,7 +78,7 @@ const MODELS_DATA: ModelData[] = [
       { label: 'FC 10', type: 'fc', note: 'output' },
     ],
     specs: [
-      { label: 'Parameters', value: '~60K' },
+      { label: 'Parameters', value: '44K–62K' },
       { label: 'Layers', value: '5' },
       { label: 'Filters', value: '6 / 16' },
       { label: 'Activation', value: 'Tanh' },
@@ -108,7 +108,7 @@ const MODELS_DATA: ModelData[] = [
       { label: 'FC 10', type: 'fc', note: 'output' },
     ],
     specs: [
-      { label: 'Parameters', value: '~15M' },
+      { label: 'Parameters', value: '11.2M–14.9M' },
       { label: 'Layers', value: '8' },
       { label: 'Channels', value: '64–384' },
       { label: 'Activation', value: 'ReLU' },
@@ -138,7 +138,7 @@ const MODELS_DATA: ModelData[] = [
       { label: 'FC 10', type: 'fc', note: 'output' },
     ],
     specs: [
-      { label: 'Parameters', value: '~130M' },
+      { label: 'Parameters', value: '~28.1M' },
       { label: 'Layers', value: '11' },
       { label: 'Channels', value: '64–512' },
       { label: 'Activation', value: 'ReLU' },
@@ -164,7 +164,7 @@ const MODELS_DATA: ModelData[] = [
       { label: 'FC 10', type: 'fc', note: 'output' },
     ],
     specs: [
-      { label: 'Parameters', value: '~11M' },
+      { label: 'Parameters', value: '~11.2M' },
       { label: 'Layers', value: '18' },
       { label: 'Channels', value: '64–512' },
       { label: 'Activation', value: 'ReLU + BN' },
@@ -191,7 +191,7 @@ const MODELS_DATA: ModelData[] = [
       { label: 'FC 10', type: 'fc', note: 'output' },
     ],
     specs: [
-      { label: 'Parameters', value: '~270K' },
+      { label: 'Parameters', value: '~274K' },
       { label: 'Layers', value: '7 blocks' },
       { label: 'Channels', value: '32–512' },
       { label: 'Activation', value: 'ReLU + BN' },
@@ -228,7 +228,13 @@ export function ModelsPage() {
   return (
     <div className="view">
       <h1 className="view-title">About the models</h1>
-      <p className="view-desc">Architecture, parameters and layer diagram for every network available in the app.</p>
+      <p className="view-desc">
+        Architecture, parameters and layer diagram for every network available in the app. Parameter counts are
+        measured directly from this app's implementations at MNIST/Fashion-MNIST (1×28×28) and CIFAR-10 (3×32×32)
+        input sizes — not the original papers' figures, which were reported for much larger inputs (e.g. ImageNet's
+        224×224). Architectures without global pooling before their final layer (SimpleCNN, LeNet-5, AlexNet) scale
+        with input size, so their parameter count is shown as a range.
+      </p>
 
       <div className="models-grid">
         {MODELS_DATA.map((model) => (
