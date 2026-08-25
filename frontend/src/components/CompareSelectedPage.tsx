@@ -12,6 +12,7 @@ import {
   bestWorstIds,
   computeBestEpoch,
   computeOverfitGap,
+  formatBytes,
   formatParamCount,
   type BestWorst,
 } from '../utils/comparisonMetrics'
@@ -57,6 +58,7 @@ type SortKey =
   | 'testLoss'
   | 'trainingTime'
   | 'params'
+  | 'modelSize'
   | 'inferenceLatency'
   | 'throughput'
   | 'overfitGap'
@@ -74,6 +76,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   testLoss: 'asc',
   trainingTime: 'asc',
   params: 'asc',
+  modelSize: 'asc',
   inferenceLatency: 'asc',
   throughput: 'desc',
   overfitGap: 'asc',
@@ -87,6 +90,7 @@ const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
   testLoss: 'lower',
   trainingTime: 'lower',
   params: 'lower',
+  modelSize: 'lower',
   inferenceLatency: 'lower',
   throughput: 'higher',
   overfitGap: 'lower',
@@ -120,6 +124,8 @@ function getSortValue(row: Row, key: SortKey): number | string {
       return row.experiment.training_time_seconds
     case 'params':
       return row.experiment.param_count
+    case 'modelSize':
+      return row.experiment.model_size_bytes
     case 'inferenceLatency':
       return row.experiment.inference_latency_ms
     case 'throughput':
@@ -267,6 +273,7 @@ export function CompareSelectedPage() {
       'Test loss': experiment.test_loss,
       'Training time (s)': experiment.training_time_seconds,
       Parameters: experiment.param_count,
+      'Model size (bytes)': experiment.model_size_bytes,
       'Inference latency (ms)': experiment.inference_latency_ms,
       'Training throughput (img/s)': experiment.training_throughput_images_per_sec,
       'Overfitting gap (pp)': overfitGap !== null ? (overfitGap * 100).toFixed(2) : '',
@@ -359,6 +366,7 @@ export function CompareSelectedPage() {
   const testLossBestWorst = bestWorstIds(rows, (r) => r.experiment.test_loss, getRowId, false)
   const trainingTimeBestWorst = bestWorstIds(rows, (r) => r.experiment.training_time_seconds, getRowId, false)
   const paramsBestWorst = bestWorstIds(rows, (r) => r.experiment.param_count, getRowId, false)
+  const modelSizeBestWorst = bestWorstIds(rows, (r) => r.experiment.model_size_bytes, getRowId, false)
   const latencyBestWorst = bestWorstIds(rows, (r) => r.experiment.inference_latency_ms, getRowId, false)
   const throughputBestWorst = bestWorstIds(rows, (r) => r.experiment.training_throughput_images_per_sec, getRowId, true)
   const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, getRowId, false)
@@ -480,6 +488,7 @@ export function CompareSelectedPage() {
                   <th>{headerButton('testLoss', 'Test loss')}</th>
                   <th>{headerButton('trainingTime', 'Training time')}</th>
                   <th>{headerButton('params', 'Parameters')}</th>
+                  <th>{headerButton('modelSize', 'Model size')}</th>
                   <th>{headerButton('inferenceLatency', 'Inference latency')}</th>
                   <th>{headerButton('throughput', 'Throughput')}</th>
                   <th>{headerButton('overfitGap', 'Overfitting gap')}</th>
@@ -507,6 +516,9 @@ export function CompareSelectedPage() {
                     </td>
                     <td className={cellClass(experiment.id, paramsBestWorst)}>
                       {formatParamCount(experiment.param_count)}
+                    </td>
+                    <td className={cellClass(experiment.id, modelSizeBestWorst)}>
+                      {formatBytes(experiment.model_size_bytes)}
                     </td>
                     <td className={cellClass(experiment.id, latencyBestWorst)}>
                       {experiment.inference_latency_ms.toFixed(1)} ms

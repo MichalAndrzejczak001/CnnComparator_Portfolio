@@ -7,6 +7,14 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters())
 
 
+# Raw byte size of everything torch.save(model.state_dict(), ...) would write — trainable
+# parameters AND buffers (e.g. BatchNorm running_mean/running_var/num_batches_tracked).
+# Two models can have the same param_count but different real size if one has many more
+# BatchNorm layers, so this is computed separately rather than derived from param_count.
+def compute_model_size_bytes(model):
+    return sum(t.numel() * t.element_size() for t in model.state_dict().values())
+
+
 def benchmark_inference(model, device, in_channels, input_size, num_runs=20):
     model.to(device)
     model.eval()

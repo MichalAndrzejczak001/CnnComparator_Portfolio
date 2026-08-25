@@ -13,6 +13,7 @@ import {
   bestWorstIds,
   computeBestEpoch,
   computeOverfitGap,
+  formatBytes,
   formatParamCount,
   type BestWorst,
 } from '../utils/comparisonMetrics'
@@ -112,6 +113,7 @@ type SortKey =
   | 'testLoss'
   | 'trainingTime'
   | 'params'
+  | 'modelSize'
   | 'inferenceLatency'
   | 'throughput'
   | 'overfitGap'
@@ -126,6 +128,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   testLoss: 'asc',
   trainingTime: 'asc',
   params: 'asc',
+  modelSize: 'asc',
   inferenceLatency: 'asc',
   throughput: 'desc',
   overfitGap: 'asc',
@@ -139,6 +142,7 @@ const BETTER_DIRECTION: Partial<Record<SortKey, 'higher' | 'lower'>> = {
   testLoss: 'lower',
   trainingTime: 'lower',
   params: 'lower',
+  modelSize: 'lower',
   inferenceLatency: 'lower',
   throughput: 'higher',
   overfitGap: 'lower',
@@ -159,6 +163,8 @@ function getSortValue(row: Row, key: SortKey): number | string {
       return row.item.training_time_seconds
     case 'params':
       return row.item.param_count
+    case 'modelSize':
+      return row.item.model_size_bytes
     case 'inferenceLatency':
       return row.item.inference_latency_ms
     case 'throughput':
@@ -354,6 +360,7 @@ export function ComparePage() {
   const testLossBestWorst = bestWorstIds(rows, (r) => r.item.test_loss, getRowId, false)
   const trainingTimeBestWorst = bestWorstIds(rows, (r) => r.item.training_time_seconds, getRowId, false)
   const paramsBestWorst = bestWorstIds(rows, (r) => r.item.param_count, getRowId, false)
+  const modelSizeBestWorst = bestWorstIds(rows, (r) => r.item.model_size_bytes, getRowId, false)
   const latencyBestWorst = bestWorstIds(rows, (r) => r.item.inference_latency_ms, getRowId, false)
   const throughputBestWorst = bestWorstIds(rows, (r) => r.item.training_throughput_images_per_sec, getRowId, true)
   const overfitBestWorst = bestWorstIds(rows, (r) => r.overfitGap, getRowId, false)
@@ -428,6 +435,7 @@ export function ComparePage() {
       'Test loss': item.test_loss,
       'Training time (s)': item.training_time_seconds,
       Parameters: item.param_count,
+      'Model size (bytes)': item.model_size_bytes,
       'Inference latency (ms)': item.inference_latency_ms,
       'Training throughput (img/s)': item.training_throughput_images_per_sec,
       'Overfitting gap (pp)': overfitGap !== null ? (overfitGap * 100).toFixed(2) : '',
@@ -651,6 +659,7 @@ export function ComparePage() {
                   <th>{headerButton('testLoss', 'Test loss')}</th>
                   <th>{headerButton('trainingTime', 'Training time')}</th>
                   <th>{headerButton('params', 'Parameters')}</th>
+                  <th>{headerButton('modelSize', 'Model size')}</th>
                   <th>{headerButton('inferenceLatency', 'Inference latency')}</th>
                   <th>{headerButton('throughput', 'Throughput')}</th>
                   <th>{headerButton('overfitGap', 'Overfitting gap')}</th>
@@ -669,6 +678,7 @@ export function ComparePage() {
                     <td className={cellClass(item.model, testLossBestWorst)}>{item.test_loss.toFixed(4)}</td>
                     <td className={cellClass(item.model, trainingTimeBestWorst)}>{item.training_time_seconds.toFixed(1)}s</td>
                     <td className={cellClass(item.model, paramsBestWorst)}>{formatParamCount(item.param_count)}</td>
+                    <td className={cellClass(item.model, modelSizeBestWorst)}>{formatBytes(item.model_size_bytes)}</td>
                     <td className={cellClass(item.model, latencyBestWorst)}>{item.inference_latency_ms.toFixed(1)} ms</td>
                     <td className={cellClass(item.model, throughputBestWorst)}>
                       {item.training_throughput_images_per_sec.toFixed(0)} img/s

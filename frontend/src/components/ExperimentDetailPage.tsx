@@ -14,7 +14,7 @@ import { LossChart } from './charts/LossChart'
 import { MostConfusedPairs } from './charts/MostConfusedPairs'
 import { computeMetrics, macroAverage, PerClassMetricsTable } from './charts/PerClassMetricsTable'
 import { SamplePredictionsGallery } from './SamplePredictionsGallery'
-import { computeBestEpoch, computeOverfitGap, formatParamCount } from '../utils/comparisonMetrics'
+import { computeBestEpoch, computeOverfitGap, formatBytes, formatParamCount } from '../utils/comparisonMetrics'
 import { downloadCsvText } from '../utils/csv'
 import { buildExperimentCsv } from '../utils/experimentCsvExport'
 
@@ -285,6 +285,10 @@ export function ExperimentDetailPage() {
             <div className="card">
               <span>Parameters</span>
               <strong>{formatParamCount(experiment.param_count)}</strong>
+            </div>
+            <div className="card">
+              <span>Model size</span>
+              <strong>{formatBytes(experiment.model_size_bytes)}</strong>
             </div>
             <div className="card">
               <span>Inference latency</span>

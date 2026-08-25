@@ -51,6 +51,7 @@ def test_experiment_response_has_required_fields(mock_deps):
     assert "training_time_seconds" in data
     assert "sample_gradcams" in data
     assert "param_count" in data
+    assert "model_size_bytes" in data
     assert "inference_latency_ms" in data
     assert "training_throughput_images_per_sec" in data
     assert "calibration_curve" in data

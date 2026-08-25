@@ -55,6 +55,9 @@ public record ExperimentResponse(
         @JsonProperty("param_count")
         long paramCount,
 
+        @JsonProperty("model_size_bytes")
+        long modelSizeBytes,
+
         @JsonProperty("inference_latency_ms")
         double inferenceLatencyMs,
 

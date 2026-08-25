@@ -29,6 +29,7 @@ function makeExperiment(overrides: Partial<ExperimentResponse> = {}): Experiment
       { true_label: '1', predicted_label: '0', confidence: 0.55, gradcam_image: 'base64...' },
     ],
     param_count: 62006,
+    model_size_bytes: 248024,
     inference_latency_ms: 3.4,
     training_throughput_images_per_sec: 850.5,
     calibration_curve: [{ bin_min: 0.9, bin_max: 1.0, avg_confidence: 0.95, accuracy: 0.91, count: 15 }],
@@ -67,6 +68,7 @@ describe('buildExperimentCsv', () => {
     expect(csv).toContain('Test accuracy (%),91.00')
     expect(csv).toContain('Macro F1 (%),85.00')
     expect(csv).toContain('Parameters,62006')
+    expect(csv).toContain('Model size (bytes),248024')
     expect(csv).toContain('Expected Calibration Error (%),3.20')
   })
 

@@ -18,6 +18,16 @@ export function formatParamCount(count: number): string {
   return `${count}`
 }
 
+// Binary units (1024-based, matching how OSes report file sizes) — the raw byte size of
+// everything saved in the model's state_dict (parameters + buffers like BatchNorm running
+// stats), so it can diverge from param_count-derived estimates.
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${bytes} B`
+}
+
 export interface BestWorst<Id> {
   bestId: Id | null
   worstId: Id | null

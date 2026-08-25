@@ -103,6 +103,7 @@ public class CompareJobService {
                         result.trainingTimeSeconds(),
                         result.confusionMatrix(),
                         result.paramCount(),
+                        result.modelSizeBytes(),
                         result.inferenceLatencyMs(),
                         result.trainingThroughputImagesPerSec(),
                         result.calibrationCurve()

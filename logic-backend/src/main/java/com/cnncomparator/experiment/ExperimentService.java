@@ -74,6 +74,7 @@ public class ExperimentService {
                 .createdAt(LocalDateTime.now())
                 .sampleGradcams(result.sampleGradcams())
                 .paramCount(result.paramCount())
+                .modelSizeBytes(result.modelSizeBytes())
                 .inferenceLatencyMs(result.inferenceLatencyMs())
                 .trainingThroughputImagesPerSec(result.trainingThroughputImagesPerSec())
                 .calibrationCurve(result.calibrationCurve())
@@ -214,6 +215,7 @@ public class ExperimentService {
                 e.getTrainingTimeSeconds(), e.getConfusionMatrix(), e.getNote(), e.getModelId(),
                 e.getCreatedAt(), e.getSampleGradcams(),
                 e.getParamCount() != null ? e.getParamCount() : 0L,
+                e.getModelSizeBytes() != null ? e.getModelSizeBytes() : 0L,
                 e.getInferenceLatencyMs() != null ? e.getInferenceLatencyMs() : 0.0,
                 e.getTrainingThroughputImagesPerSec() != null ? e.getTrainingThroughputImagesPerSec() : 0.0,
                 e.getCalibrationCurve()

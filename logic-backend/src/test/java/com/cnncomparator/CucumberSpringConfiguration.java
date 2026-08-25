@@ -35,7 +35,7 @@ public class CucumberSpringConfiguration {
                     + "\"train_accuracy_per_epoch\":[0.6,0.8],\"val_accuracy_per_epoch\":[0.65,0.91],"
                     + "\"test_loss\":0.4,\"test_accuracy\":0.91,\"training_time_seconds\":12.3,"
                     + "\"confusion_matrix\":[[5,0],[1,4]],\"sample_gradcams\":[],"
-                    + "\"param_count\":62006,\"inference_latency_ms\":3.4,"
+                    + "\"param_count\":62006,\"model_size_bytes\":248024,\"inference_latency_ms\":3.4,"
                     + "\"training_throughput_images_per_sec\":850.5,"
                     + "\"calibration_curve\":[{\"bin_min\":0.9,\"bin_max\":1.0,\"avg_confidence\":0.95,"
                     + "\"accuracy\":0.91,\"count\":15}]}"));

@@ -27,6 +27,7 @@ function buildSummaryRows(experiment: ExperimentResponse, extras: SummaryExtras)
     { Metric: 'Test loss', Value: experiment.test_loss },
     { Metric: 'Training time (s)', Value: experiment.training_time_seconds },
     { Metric: 'Parameters', Value: experiment.param_count },
+    { Metric: 'Model size (bytes)', Value: experiment.model_size_bytes },
     { Metric: 'Inference latency (ms)', Value: experiment.inference_latency_ms },
     { Metric: 'Training throughput (img/s)', Value: experiment.training_throughput_images_per_sec },
     { Metric: 'Overfitting gap (pp)', Value: formatPercent(extras.overfitGap) },

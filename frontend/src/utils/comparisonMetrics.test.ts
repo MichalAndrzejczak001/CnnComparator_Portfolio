@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bestWorstIds, computeBestEpoch, computeOverfitGap, formatParamCount } from './comparisonMetrics'
+import { bestWorstIds, computeBestEpoch, computeOverfitGap, formatBytes, formatParamCount } from './comparisonMetrics'
 
 describe('computeOverfitGap', () => {
   it('returns the gap between the last train and val accuracy', () => {
@@ -41,6 +41,24 @@ describe('formatParamCount', () => {
 
   it('leaves small counts as a plain number', () => {
     expect(formatParamCount(842)).toBe('842')
+  })
+})
+
+describe('formatBytes', () => {
+  it('formats gigabytes with two decimals', () => {
+    expect(formatBytes(2.5 * 1024 ** 3)).toBe('2.50 GB')
+  })
+
+  it('formats megabytes with two decimals', () => {
+    expect(formatBytes(1.25 * 1024 ** 2)).toBe('1.25 MB')
+  })
+
+  it('formats kilobytes with one decimal', () => {
+    expect(formatBytes(1536)).toBe('1.5 KB')
+  })
+
+  it('leaves small byte counts as a plain number', () => {
+    expect(formatBytes(512)).toBe('512 B')
   })
 })
 

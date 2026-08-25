@@ -24,6 +24,7 @@
     "created_at": { "type": "string" },
     "sample_gradcams": { "type": "array" },
     "param_count": { "type": "integer" },
+    "model_size_bytes": { "type": "integer" },
     "inference_latency_ms": { "type": "number" },
     "training_throughput_images_per_sec": { "type": "number" },
     "calibration_curve": {
@@ -47,7 +48,7 @@
     "train_loss_per_epoch", "val_loss_per_epoch", "train_accuracy_per_epoch", "val_accuracy_per_epoch",
     "test_loss", "test_accuracy",
     "training_time_seconds", "confusion_matrix", "note", "model_id", "created_at", "sample_gradcams",
-    "param_count", "inference_latency_ms", "training_throughput_images_per_sec", "calibration_curve"
+    "param_count", "model_size_bytes", "inference_latency_ms", "training_throughput_images_per_sec", "calibration_curve"
   ],
   "additionalProperties": false
 }

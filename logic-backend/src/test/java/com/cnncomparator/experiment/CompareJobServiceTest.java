@@ -85,7 +85,7 @@ class CompareJobServiceTest {
                 .thenReturn(new AiExperimentResult(
                         "model-1", List.of(0.9), List.of(0.8), List.of(0.6), List.of(0.65),
                         0.4, 0.91, 12.3, List.of(List.of(5, 0), List.of(1, 4)), List.of(),
-                        62006L, 3.4, 850.5, List.of()
+                        62006L, 248024L, 3.4, 850.5, List.of()
                 ));
 
         String jobId = compareJobService.startJob(request(), "michal");

@@ -74,6 +74,7 @@ public class Experiment {
     // boxed (not primitive) so adding this column to an existing table doesn't
     // require backfilling a NOT NULL default for experiments created before this field existed
     private Long paramCount;
+    private Long modelSizeBytes;
     private Double inferenceLatencyMs;
     private Double trainingThroughputImagesPerSec;
 

@@ -63,6 +63,7 @@ export interface ExperimentResponse {
   created_at: string
   sample_gradcams: SampleGradCam[]
   param_count: number
+  model_size_bytes: number
   inference_latency_ms: number
   training_throughput_images_per_sec: number
   calibration_curve: CalibrationBin[] | null
@@ -101,6 +102,7 @@ export interface CompareResultItem {
   training_time_seconds: number
   confusion_matrix: number[][]
   param_count: number
+  model_size_bytes: number
   inference_latency_ms: number
   training_throughput_images_per_sec: number
   calibration_curve: CalibrationBin[] | null

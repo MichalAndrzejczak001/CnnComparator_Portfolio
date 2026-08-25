@@ -21,7 +21,7 @@ from backend.schemas import (
     ClassConfidence, CompareConfig, ExperimentConfig, GradCamResponse, PredictResponse,
 )
 from backend.training.trainer import (
-    benchmark_inference, compute_training_throughput, count_parameters, evaluate, train,
+    benchmark_inference, compute_model_size_bytes, compute_training_throughput, count_parameters, evaluate, train,
 )
 
 logger = logging.getLogger(__name__)
@@ -227,6 +227,7 @@ def run_experiment(config: ExperimentConfig):
     )
     metrics = evaluate(model, test_loader, num_classes, device=device)
     param_count = count_parameters(model)
+    model_size_bytes = compute_model_size_bytes(model)
     inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
     training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
@@ -249,6 +250,7 @@ def run_experiment(config: ExperimentConfig):
         "confusion_matrix": metrics["confusion_matrix"],
         "sample_gradcams": sample_gradcams,
         "param_count": param_count,
+        "model_size_bytes": model_size_bytes,
         "inference_latency_ms": inference_latency_ms,
         "training_throughput_images_per_sec": training_throughput,
         "calibration_curve": metrics["calibration_curve"],
@@ -273,6 +275,7 @@ def compare_models(config: CompareConfig):
         )
         metrics = evaluate(model, test_loader, num_classes, device=device)
         param_count = count_parameters(model)
+        model_size_bytes = compute_model_size_bytes(model)
         inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
         training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
@@ -287,6 +290,7 @@ def compare_models(config: CompareConfig):
             "training_time_seconds": training_time,
             "confusion_matrix": metrics["confusion_matrix"],
             "param_count": param_count,
+            "model_size_bytes": model_size_bytes,
             "inference_latency_ms": inference_latency_ms,
             "training_throughput_images_per_sec": training_throughput,
             "calibration_curve": metrics["calibration_curve"],

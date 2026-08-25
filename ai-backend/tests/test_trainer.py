@@ -5,7 +5,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from backend.models.resnet18_custom import ResNet18
 from backend.models.simple_cnn import SimpleCNN
 from backend.training.trainer import (
-    benchmark_inference, compute_calibration_curve, compute_training_throughput, count_parameters, evaluate, train,
+    benchmark_inference, compute_calibration_curve, compute_model_size_bytes, compute_training_throughput,
+    count_parameters, evaluate, train,
 )
 
 
@@ -130,6 +131,23 @@ def test_count_parameters_is_positive_for_a_real_model():
     model = ResNet18(1, 10)
 
     assert count_parameters(model) > 0
+
+
+def test_model_size_bytes_matches_manual_sum_for_a_model_without_buffers():
+    model = SimpleCNN(1, 10)
+    expected = sum(t.numel() * t.element_size() for t in model.state_dict().values())
+
+    assert compute_model_size_bytes(model) == expected
+
+
+def test_model_size_bytes_exceeds_raw_parameter_bytes_for_a_model_with_batchnorm():
+    # ResNet18 has BatchNorm layers, whose running_mean/running_var/num_batches_tracked
+    # buffers are saved in state_dict() but aren't counted by count_parameters() — so model
+    # size in bytes should be strictly larger than param_count * 4 bytes (float32).
+    model = ResNet18(1, 10)
+    param_bytes = count_parameters(model) * 4
+
+    assert compute_model_size_bytes(model) > param_bytes
 
 
 def test_benchmark_inference_returns_a_positive_latency():
