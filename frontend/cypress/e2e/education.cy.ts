@@ -1,7 +1,10 @@
 describe('models and datasets pages', () => {
   beforeEach(() => {
     window.localStorage.clear()
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: [] }).as('listExperiments')
+    cy.intercept(
+      { method: 'GET', pathname: '/experiments' },
+      { statusCode: 200, body: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0, last: true } },
+    ).as('listExperiments')
     cy.loginByToken()
   })
 

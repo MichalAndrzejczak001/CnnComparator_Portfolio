@@ -17,6 +17,17 @@ const experiments = [
   },
 ]
 
+function toPage(content: typeof experiments) {
+  return {
+    content,
+    page: 0,
+    size: 20,
+    total_elements: content.length,
+    total_pages: content.length === 0 ? 0 : 1,
+    last: true,
+  }
+}
+
 describe('dashboard', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -28,7 +39,9 @@ describe('dashboard', () => {
   })
 
   it('lists experiments for an authenticated user', () => {
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: experiments }).as('listExperiments')
+    cy.intercept({ method: 'GET', pathname: '/experiments' }, { statusCode: 200, body: toPage(experiments) }).as(
+      'listExperiments',
+    )
 
     cy.loginByToken()
     cy.visit('/dashboard')
@@ -45,7 +58,9 @@ describe('dashboard', () => {
   })
 
   it('shows an empty state when there are no experiments', () => {
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: [] }).as('listExperiments')
+    cy.intercept({ method: 'GET', pathname: '/experiments' }, { statusCode: 200, body: toPage([]) }).as(
+      'listExperiments',
+    )
 
     cy.loginByToken()
     cy.visit('/dashboard')
@@ -55,8 +70,14 @@ describe('dashboard', () => {
   })
 
   it('deletes an experiment from the list', () => {
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: experiments }).as('listExperiments')
-    cy.intercept('DELETE', '/experiments/1', { statusCode: 204 }).as('deleteExperiment')
+    let current = [...experiments]
+    cy.intercept({ method: 'GET', pathname: '/experiments' }, (req) => {
+      req.reply({ statusCode: 200, body: toPage(current) })
+    }).as('listExperiments')
+    cy.intercept('DELETE', '/experiments/1', (req) => {
+      current = current.filter((experiment) => experiment.id !== 1)
+      req.reply({ statusCode: 204 })
+    }).as('deleteExperiment')
 
     cy.loginByToken()
     cy.visit('/dashboard')
@@ -64,13 +85,18 @@ describe('dashboard', () => {
 
     cy.contains('.experiment-card', 'LeNet-5').contains('button', 'Delete').click()
     cy.wait('@deleteExperiment')
+    // Deleting no longer removes the row locally — the dashboard refetches the current
+    // page, so the mocked list response must reflect the deletion too.
+    cy.wait('@listExperiments')
 
     cy.contains('LeNet-5').should('not.exist')
     cy.contains('.experiment-card', 'ResNet18')
   })
 
   it('navigates to an experiment detail page', () => {
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: experiments }).as('listExperiments')
+    cy.intercept({ method: 'GET', pathname: '/experiments' }, { statusCode: 200, body: toPage(experiments) }).as(
+      'listExperiments',
+    )
 
     cy.loginByToken()
     cy.visit('/dashboard')

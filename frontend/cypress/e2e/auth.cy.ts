@@ -15,7 +15,10 @@ describe('landing page and authentication', () => {
       statusCode: 201,
       body: { token: 'new-user-token' },
     }).as('register')
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: [] }).as('listExperiments')
+    cy.intercept(
+      { method: 'GET', pathname: '/experiments' },
+      { statusCode: 200, body: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0, last: true } },
+    ).as('listExperiments')
 
     cy.visit('/')
     cy.contains('nav button', 'Sign up').click()
@@ -51,7 +54,10 @@ describe('landing page and authentication', () => {
       statusCode: 200,
       body: { token: 'existing-user-token' },
     }).as('login')
-    cy.intercept('GET', '/experiments', { statusCode: 200, body: [] }).as('listExperiments')
+    cy.intercept(
+      { method: 'GET', pathname: '/experiments' },
+      { statusCode: 200, body: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0, last: true } },
+    ).as('listExperiments')
 
     cy.visit('/')
     cy.contains('nav button', 'Log in').click()
