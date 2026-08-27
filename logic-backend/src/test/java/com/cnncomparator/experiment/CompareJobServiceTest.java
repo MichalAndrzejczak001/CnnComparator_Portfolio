@@ -107,7 +107,9 @@ class CompareJobServiceTest {
         CompareJobStatus status = compareJobService.getStatus(jobId, "michal");
 
         assertThat(status.status()).isEqualTo("FAILED");
-        assertThat(status.error()).isEqualTo("ai-backend unreachable");
+        // The real exception message ("ai-backend unreachable", which could leak internal
+        // details like the ai-backend URL) must not reach the client — only the log does.
+        assertThat(status.error()).isEqualTo("The comparison failed due to an unexpected error");
         assertThat(status.results()).isEmpty();
     }
 

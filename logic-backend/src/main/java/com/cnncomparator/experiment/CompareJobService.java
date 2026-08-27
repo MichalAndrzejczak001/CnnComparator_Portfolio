@@ -115,8 +115,11 @@ public class CompareJobService {
             job.setCurrentModel(null);
             job.setStatus(CompareJob.Status.COMPLETED);
         } catch (Exception e) {
+            // Full exception (incl. message, which may embed internal details like the
+            // ai-backend URL) goes to the server log only — getStatus() exposes job.getError()
+            // straight to the client, so it must stay a generic, safe-to-display message.
             log.error("Compare job {} failed", job.getId(), e);
-            job.setError(e.getMessage() != null ? e.getMessage() : "Unexpected error occurred");
+            job.setError("The comparison failed due to an unexpected error");
             job.setStatus(CompareJob.Status.FAILED);
         }
     }
