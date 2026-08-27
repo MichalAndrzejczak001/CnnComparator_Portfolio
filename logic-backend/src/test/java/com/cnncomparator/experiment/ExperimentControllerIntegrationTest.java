@@ -275,6 +275,21 @@ class ExperimentControllerIntegrationTest {
     @Test
     @Story("Negative")
     @Severity(SeverityLevel.NORMAL)
+    void createExperimentRejectsExcessiveEpochs() throws Exception {
+        String token = registerAndGetToken("excessive_epochs_user");
+
+        mockMvc.perform(post("/experiments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"model":"simple_cnn","dataset":"mnist","training":{"epochs":1000000,"batch_size":16,"learning_rate":0.01}}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Story("Negative")
+    @Severity(SeverityLevel.NORMAL)
     void predictRejectsNonExistentExperiment() throws Exception {
         String token = registerAndGetToken("predict_missing_experiment_user");
         MockMultipartFile file = new MockMultipartFile("file", "digit.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});
@@ -446,6 +461,22 @@ class ExperimentControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"ids\":[]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Story("Destructive")
+    @Severity(SeverityLevel.NORMAL)
+    void compareExistingExperimentsRejectsMoreThanFiftyIds() throws Exception {
+        String token = registerAndGetToken("compare_existing_too_many_user");
+        String ids = java.util.stream.LongStream.rangeClosed(1, 51)
+                .mapToObj(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
+
+        mockMvc.perform(post("/experiments/compare-existing")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[" + ids + "]}"))
                 .andExpect(status().isBadRequest());
     }
 }
