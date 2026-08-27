@@ -1,6 +1,7 @@
 package com.cnncomparator.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -32,5 +33,13 @@ class GlobalExceptionHandlerTest {
         ProblemDetail problem = handler.handleAiBackendFailure(new ResourceAccessException("connection refused"));
 
         assertThat(problem.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
+    }
+
+    @Test
+    void uniqueConstraintViolationIsReportedAsConflictNotAServerError() {
+        ProblemDetail problem = handler.handleDataIntegrityViolation(
+                new DataIntegrityViolationException("Duplicate entry 'alice' for key 'uk_users_username'"));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
     }
 }
