@@ -1,11 +1,14 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal, List
 
 
 class TrainingConfig(BaseModel):
-    epochs: int = 5
-    batch_size: int = 32
-    learning_rate: float = 0.001
+    # Bounds mirror logic-backend's TrainingConfig (dto/TrainingConfig.java) and the
+    # frontend's input ranges — ai-backend is reachable directly (not just through
+    # logic-backend), so it must not trust an unbounded batch_size/epochs from any caller.
+    epochs: int = Field(default=5, gt=0, le=100)
+    batch_size: int = Field(default=32, gt=0, le=512)
+    learning_rate: float = Field(default=0.001, gt=0, le=1.0)
 
 
 class ExperimentConfig(BaseModel):

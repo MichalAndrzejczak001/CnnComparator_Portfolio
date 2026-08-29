@@ -1,6 +1,5 @@
 import io
 
-import pytest
 import torch
 from fastapi.testclient import TestClient
 
@@ -96,6 +95,38 @@ def test_compare_result_model_names(mock_deps):
     assert returned_models == MODEL_NAMES
 
 
+def test_experiment_training_failure_is_reported_as_500_not_a_crash(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr("backend.main.load_dataset", _boom)
+
+    response = client.post("/experiments", json={
+        "model": "simple_cnn",
+        "dataset": "mnist",
+        "training": {"epochs": 1, "batch_size": 32, "learning_rate": 0.001},
+    })
+
+    assert response.status_code == 500
+    # The real exception message must not leak to the client — only to the server log.
+    assert "CUDA out of memory" not in response.text
+
+
+def test_compare_training_failure_is_reported_as_500_not_a_crash(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr("backend.main.load_dataset", _boom)
+
+    response = client.post("/compare", json={
+        "dataset": "mnist",
+        "training": {"epochs": 1, "batch_size": 32, "learning_rate": 0.001},
+    })
+
+    assert response.status_code == 500
+    assert "CUDA out of memory" not in response.text
+
+
 def test_invalid_model_name_rejected():
     response = client.post("/experiments", json={
         "model": "transformer",
@@ -115,7 +146,6 @@ def test_invalid_dataset_rejected():
 
 
 def test_predict_missing_weights_returns_404():
-    import io
     fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
     response = client.post("/predict", data={
         "model_name": "simple_cnn",
@@ -126,7 +156,6 @@ def test_predict_missing_weights_returns_404():
 
 
 def test_predict_invalid_model_id_returns_400():
-    import io
     fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
     response = client.post("/predict", data={
         "model_name": "simple_cnn",
@@ -157,6 +186,22 @@ def test_predict_corrupt_image_returns_400(tmp_path, monkeypatch):
 
     assert response.status_code == 400
     assert "Invalid or unsupported image file" in response.json()["detail"]
+
+
+def test_predict_oversized_image_returns_413(tmp_path, monkeypatch):
+    from backend.main import MAX_UPLOAD_SIZE_BYTES
+
+    model_id = "550e8400-e29b-41d4-a716-446655440003"
+    _save_dummy_weights(tmp_path, monkeypatch, model_id)
+    oversized = io.BytesIO(b"\x00" * (MAX_UPLOAD_SIZE_BYTES + 1))
+
+    response = client.post("/predict", data={
+        "model_name": "simple_cnn",
+        "dataset": "mnist",
+        "model_id": model_id,
+    }, files={"file": ("too_big.png", oversized, "image/png")})
+
+    assert response.status_code == 413
 
 
 def test_gradcam_corrupt_image_returns_400(tmp_path, monkeypatch):

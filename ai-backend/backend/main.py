@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import uuid
+from typing import Dict, List, Tuple
 
 import matplotlib
 import numpy as np
@@ -10,6 +11,8 @@ import torch
 import torch.optim as optim
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from PIL import Image
+from torch import Tensor, nn
+from torch.utils.data import DataLoader
 from torchvision import transforms
 
 matplotlib.use("Agg")
@@ -47,7 +50,7 @@ FASHION_MNIST_CLASSES = [
 ]
 
 
-def _resolve_dataset(dataset: str):
+def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str], transforms.Compose]:
     if dataset == "mnist":
         transform = transforms.Compose([
             transforms.Grayscale(1),
@@ -72,7 +75,9 @@ def _resolve_dataset(dataset: str):
         raise HTTPException(status_code=400, detail=f"Unknown dataset: {dataset}")
 
 
-def _load_inference_model(model_name: str, dataset: str, model_id: str, device: str):
+def _load_inference_model(
+        model_name: str, dataset: str, model_id: str, device: str
+) -> Tuple[nn.Module, int, Tuple[int, int], int, List[str], transforms.Compose]:
     if model_name not in MODEL_NAMES:
         raise HTTPException(status_code=400, detail=f"Unknown model: {model_name}")
 
@@ -98,14 +103,23 @@ def _load_inference_model(model_name: str, dataset: str, model_id: str, device: 
     return model, in_channels, input_size, num_classes, class_labels, transform
 
 
+# Matches logic-backend's multipart max-file-size (application.yaml) — that limit only
+# protects requests routed through logic-backend, and ai-backend has no auth of its own, so
+# it must not assume every caller already enforced this.
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
+
+
 def _read_uploaded_image(file: UploadFile) -> Image.Image:
+    data = file.file.read(MAX_UPLOAD_SIZE_BYTES + 1)
+    if len(data) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="Image exceeds the 10MB upload limit")
     try:
-        return Image.open(io.BytesIO(file.file.read()))
+        return Image.open(io.BytesIO(data))
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid or unsupported image file")
 
 
-def _get_target_layer(model, model_name: str):
+def _get_target_layer(model: nn.Module, model_name: str) -> nn.Module:
     if model_name == "simple_cnn":
         return model.conv2
     elif model_name == "lenet5":
@@ -121,7 +135,9 @@ def _get_target_layer(model, model_name: str):
     raise ValueError(f"Unknown model: {model_name}")
 
 
-def _compute_grad_cam(model, tensor, target_layer, predicted_index, device):
+def _compute_grad_cam(
+        model: nn.Module, tensor: Tensor, target_layer: nn.Module, predicted_index: int, device: str
+) -> np.ndarray:
     activations, gradients = [], []
 
     fh = target_layer.register_forward_hook(lambda m, i, o: activations.append(o))
@@ -150,7 +166,7 @@ def _compute_grad_cam(model, tensor, target_layer, predicted_index, device):
     return cam
 
 
-def _overlay_grad_cam(cam, original_tensor):
+def _overlay_grad_cam(cam: np.ndarray, original_tensor: Tensor) -> str:
     img = original_tensor.squeeze().cpu().numpy()
 
     if img.ndim == 2:
@@ -174,7 +190,9 @@ def _overlay_grad_cam(cam, original_tensor):
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def _generate_sample_gradcams(model, model_name, test_loader, class_labels, device):
+def _generate_sample_gradcams(
+        model: nn.Module, model_name: str, test_loader: DataLoader, class_labels: List[str], device: str
+) -> List[Dict[str, object]]:
     model.eval()
     target_layer = _get_target_layer(model, model_name)
     seen = {}
@@ -218,30 +236,35 @@ def health():
 
 @app.post("/experiments")
 def run_experiment(config: ExperimentConfig):
+    try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
+            config.dataset, config.training.batch_size
+        )
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
-        config.dataset, config.training.batch_size
-    )
+        torch.manual_seed(TRAINING_SEED)
+        model = create_model(config.model, num_classes, in_channels, input_size)
+        optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
-    torch.manual_seed(TRAINING_SEED)
-    model = create_model(config.model, num_classes, in_channels, input_size)
-    optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
+        train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
+            model, train_loader, val_loader, config.training.epochs, optimizer, device=device
+        )
+        metrics = evaluate(model, test_loader, num_classes, device=device)
+        param_count = count_parameters(model)
+        model_size_bytes = compute_model_size_bytes(model)
+        inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
+        training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
-    train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
-        model, train_loader, val_loader, config.training.epochs, optimizer, device=device
-    )
-    metrics = evaluate(model, test_loader, num_classes, device=device)
-    param_count = count_parameters(model)
-    model_size_bytes = compute_model_size_bytes(model)
-    inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
-    training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
+        model_id = str(uuid.uuid4())
+        torch.save(model.state_dict(), os.path.join(SAVED_MODELS_DIR, f"{model_id}.pth"))
 
-    model_id = str(uuid.uuid4())
-    torch.save(model.state_dict(), os.path.join(SAVED_MODELS_DIR, f"{model_id}.pth"))
-
-    _, _, _, class_labels, _ = _resolve_dataset(config.dataset)
-    sample_gradcams = _generate_sample_gradcams(model, config.model, test_loader, class_labels, device)
+        _, _, _, class_labels, _ = _resolve_dataset(config.dataset)
+        sample_gradcams = _generate_sample_gradcams(model, config.model, test_loader, class_labels, device)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Training failed for model=%s dataset=%s", config.model, config.dataset)
+        raise HTTPException(status_code=500, detail="Training failed due to an unexpected error")
 
     return {
         "status": "training and evaluation finished",
@@ -265,45 +288,50 @@ def run_experiment(config: ExperimentConfig):
 
 @app.post("/compare")
 def compare_models(config: CompareConfig):
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
-        config.dataset, config.training.batch_size
-    )
-
-    results = []
-    for model_name in MODEL_NAMES:
-        # Reseed per model rather than once before the loop, so each architecture gets the
-        # same deterministic init/shuffle sequence regardless of its position in MODEL_NAMES.
-        torch.manual_seed(TRAINING_SEED)
-        model = create_model(model_name, num_classes, in_channels, input_size)
-        optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
-
-        train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
-            model, train_loader, val_loader, config.training.epochs, optimizer, device=device
+    try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
+            config.dataset, config.training.batch_size
         )
-        metrics = evaluate(model, test_loader, num_classes, device=device)
-        param_count = count_parameters(model)
-        model_size_bytes = compute_model_size_bytes(model)
-        inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
-        training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
-        results.append({
-            "model": model_name,
-            "train_loss_per_epoch": train_loss,
-            "val_loss_per_epoch": val_loss_per_epoch,
-            "train_accuracy_per_epoch": train_accuracy,
-            "val_accuracy_per_epoch": val_accuracy_per_epoch,
-            "test_loss": metrics["loss"],
-            "test_accuracy": metrics["accuracy"],
-            "training_time_seconds": training_time,
-            "confusion_matrix": metrics["confusion_matrix"],
-            "param_count": param_count,
-            "model_size_bytes": model_size_bytes,
-            "inference_latency_ms": inference_latency_ms,
-            "training_throughput_images_per_sec": training_throughput,
-            "calibration_curve": metrics["calibration_curve"],
-        })
+        results = []
+        for model_name in MODEL_NAMES:
+            # Reseed per model rather than once before the loop, so each architecture gets the
+            # same deterministic init/shuffle sequence regardless of its position in MODEL_NAMES.
+            torch.manual_seed(TRAINING_SEED)
+            model = create_model(model_name, num_classes, in_channels, input_size)
+            optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
+
+            train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
+                model, train_loader, val_loader, config.training.epochs, optimizer, device=device
+            )
+            metrics = evaluate(model, test_loader, num_classes, device=device)
+            param_count = count_parameters(model)
+            model_size_bytes = compute_model_size_bytes(model)
+            inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
+            training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
+
+            results.append({
+                "model": model_name,
+                "train_loss_per_epoch": train_loss,
+                "val_loss_per_epoch": val_loss_per_epoch,
+                "train_accuracy_per_epoch": train_accuracy,
+                "val_accuracy_per_epoch": val_accuracy_per_epoch,
+                "test_loss": metrics["loss"],
+                "test_accuracy": metrics["accuracy"],
+                "training_time_seconds": training_time,
+                "confusion_matrix": metrics["confusion_matrix"],
+                "param_count": param_count,
+                "model_size_bytes": model_size_bytes,
+                "inference_latency_ms": inference_latency_ms,
+                "training_throughput_images_per_sec": training_throughput,
+                "calibration_curve": metrics["calibration_curve"],
+            })
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Comparison failed for dataset=%s", config.dataset)
+        raise HTTPException(status_code=500, detail="Comparison failed due to an unexpected error")
 
     return {
         "dataset": config.dataset,
