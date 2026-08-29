@@ -39,8 +39,8 @@ def test_train_loss_values_are_positive():
 
     train_losses, val_losses, _, _, _ = train(model, loader, loader, epochs=2, optimizer=optimizer)
 
-    assert all(l > 0 for l in train_losses)
-    assert all(l > 0 for l in val_losses)
+    assert all(loss > 0 for loss in train_losses)
+    assert all(loss > 0 for loss in val_losses)
 
 
 def test_train_accuracy_values_are_in_range():

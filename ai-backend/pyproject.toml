@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# Pyflakes (F) + pycodestyle errors (E) only: real defects (unused imports/variables,
+# undefined names, ambiguous identifiers), not a formatting style opinion.
+select = ["E", "F"]

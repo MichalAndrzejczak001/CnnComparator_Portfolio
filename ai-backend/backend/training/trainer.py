@@ -1,9 +1,13 @@
 import time
+from typing import Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
+from torch.optim import Optimizer
+from torch.utils.data import DataLoader
 
 
-def count_parameters(model):
+def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
 
 
@@ -11,11 +15,13 @@ def count_parameters(model):
 # parameters AND buffers (e.g. BatchNorm running_mean/running_var/num_batches_tracked).
 # Two models can have the same param_count but different real size if one has many more
 # BatchNorm layers, so this is computed separately rather than derived from param_count.
-def compute_model_size_bytes(model):
+def compute_model_size_bytes(model: nn.Module) -> int:
     return sum(t.numel() * t.element_size() for t in model.state_dict().values())
 
 
-def benchmark_inference(model, device, in_channels, input_size, num_runs=20):
+def benchmark_inference(
+        model: nn.Module, device: str, in_channels: int, input_size: Tuple[int, int], num_runs: int = 20
+) -> float:
     model.to(device)
     model.eval()
     height, width = input_size
@@ -39,14 +45,17 @@ def benchmark_inference(model, device, in_channels, input_size, num_runs=20):
     return (elapsed / num_runs) * 1000
 
 
-def compute_training_throughput(train_loader, epochs, training_time_seconds):
+def compute_training_throughput(train_loader: DataLoader, epochs: int, training_time_seconds: float) -> float:
     if training_time_seconds <= 0:
         return 0.0
     images_per_epoch = len(train_loader) * train_loader.batch_size
     return (images_per_epoch * epochs) / training_time_seconds
 
 
-def train(model, train_loader, val_loader, epochs, optimizer, device="cpu"):
+def train(
+        model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, epochs: int,
+        optimizer: Optimizer, device: str = "cpu"
+) -> Tuple[List[float], List[float], List[float], List[float], float]:
     model.to(device)
     criterion = nn.CrossEntropyLoss()
 
@@ -94,7 +103,9 @@ def train(model, train_loader, val_loader, epochs, optimizer, device="cpu"):
     return train_losses, val_losses, train_accuracies, val_accuracies, training_time
 
 
-def compute_calibration_curve(confidences, labels, preds, num_bins=10):
+def compute_calibration_curve(
+        confidences: List[float], labels: List[int], preds: List[int], num_bins: int = 10
+) -> List[Dict[str, Optional[float]]]:
     bins = []
     for i in range(num_bins):
         bin_min = i / num_bins
@@ -120,7 +131,7 @@ def compute_calibration_curve(confidences, labels, preds, num_bins=10):
     return bins
 
 
-def evaluate(model, test_loader, num_classes, device="cpu"):
+def evaluate(model: nn.Module, test_loader: DataLoader, num_classes: int, device: str = "cpu") -> Dict[str, object]:
     model.to(device)
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -146,7 +157,7 @@ def evaluate(model, test_loader, num_classes, device="cpu"):
     for true, pred in zip(all_labels, all_preds):
         confusion_matrix[true][pred] += 1
 
-    accuracy = sum(l == p for l, p in zip(all_labels, all_preds)) / len(all_labels)
+    accuracy = sum(label == pred for label, pred in zip(all_labels, all_preds)) / len(all_labels)
     calibration_curve = compute_calibration_curve(all_confidences, all_labels, all_preds)
 
     return {
