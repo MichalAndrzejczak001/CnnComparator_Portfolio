@@ -1,23 +1,20 @@
 package com.cnncomparator.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
-@AllArgsConstructor
-public class CalibrationBin {
+public record CalibrationBin(
 
-    @JsonProperty("bin_min")
-    public double binMin;
+        @JsonProperty("bin_min")
+        double binMin,
 
-    @JsonProperty("bin_max")
-    public double binMax;
+        @JsonProperty("bin_max")
+        double binMax,
 
-    @JsonProperty("avg_confidence")
-    public Double avgConfidence;
+        @JsonProperty("avg_confidence")
+        Double avgConfidence,
 
-    public Double accuracy;
+        Double accuracy,
 
-    public int count;
+        int count
+) {
 }

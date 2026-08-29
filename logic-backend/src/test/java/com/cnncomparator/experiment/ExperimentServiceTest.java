@@ -84,7 +84,7 @@ class ExperimentServiceTest {
         assertThat(response.inferenceLatencyMs()).isEqualTo(3.4);
         assertThat(response.trainingThroughputImagesPerSec()).isEqualTo(850.5);
         assertThat(response.calibrationCurve()).hasSize(1);
-        assertThat(response.calibrationCurve().get(0).accuracy).isEqualTo(0.91);
+        assertThat(response.calibrationCurve().get(0).accuracy()).isEqualTo(0.91);
         verify(experimentRepository).save(any(Experiment.class));
     }
 

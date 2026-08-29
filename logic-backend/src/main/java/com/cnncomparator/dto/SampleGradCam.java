@@ -1,21 +1,18 @@
 package com.cnncomparator.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
-@AllArgsConstructor
-public class SampleGradCam {
+public record SampleGradCam(
 
-    @JsonProperty("true_label")
-    public String trueLabel;
+        @JsonProperty("true_label")
+        String trueLabel,
 
-    @JsonProperty("predicted_label")
-    public String predictedLabel;
+        @JsonProperty("predicted_label")
+        String predictedLabel,
 
-    public double confidence;
+        double confidence,
 
-    @JsonProperty("gradcam_image")
-    public String gradcamImage;
+        @JsonProperty("gradcam_image")
+        String gradcamImage
+) {
 }
