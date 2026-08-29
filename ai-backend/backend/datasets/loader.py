@@ -1,12 +1,14 @@
+from typing import Tuple
+
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import datasets, transforms
 
 VAL_FRACTION = 0.1
 SPLIT_SEED = 42
 
 
-def _split_train_val(train_dataset, batch_size):
+def _split_train_val(train_dataset: Dataset, batch_size: int) -> Tuple[DataLoader, DataLoader]:
     val_size = int(len(train_dataset) * VAL_FRACTION)
     train_size = len(train_dataset) - val_size
     generator = torch.Generator().manual_seed(SPLIT_SEED)
@@ -17,7 +19,9 @@ def _split_train_val(train_dataset, batch_size):
     return train_loader, val_loader
 
 
-def load_dataset(name: str, batch_size: int = 32):
+def load_dataset(
+        name: str, batch_size: int = 32
+) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, Tuple[int, int]]:
     if name == "mnist":
         transform = transforms.Compose([
             transforms.Resize((32, 32)),

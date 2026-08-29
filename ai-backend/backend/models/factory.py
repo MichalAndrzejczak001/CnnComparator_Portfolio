@@ -1,3 +1,7 @@
+from typing import Tuple
+
+from torch import nn
+
 from .simple_cnn import SimpleCNN
 from .lenet5 import LeNet5
 from .alexnet import AlexNet
@@ -21,7 +25,7 @@ MODEL_FACTORIES = {
 MODEL_NAMES = list(MODEL_FACTORIES.keys())
 
 
-def create_model(name, num_classes, in_channels, input_size):
+def create_model(name: str, num_classes: int, in_channels: int, input_size: Tuple[int, int]) -> nn.Module:
     try:
         factory = MODEL_FACTORIES[name]
     except KeyError:
