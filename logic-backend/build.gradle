@@ -78,6 +78,9 @@ dependencies {
 
     testImplementation 'io.qameta.allure:allure-junit5:2.35.4'
     testImplementation 'io.qameta.allure:allure-cucumber7-jvm:2.35.4'
+
+    // net.datafaker is the maintained successor to the now-abandoned javafaker.
+    testImplementation 'net.datafaker:datafaker:2.4.2'
 }
 
 allure {

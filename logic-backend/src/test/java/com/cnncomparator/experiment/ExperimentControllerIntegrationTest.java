@@ -2,6 +2,7 @@ package com.cnncomparator.experiment;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sun.net.httpserver.HttpServer;
+import net.datafaker.Faker;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Severity;
@@ -42,6 +43,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Epic("Experiments")
 @Feature("Experiment CRUD & ai-backend proxying")
 class ExperimentControllerIntegrationTest {
+
+    private static final Faker FAKER = new Faker();
 
     static HttpServer aiBackendStub;
 
@@ -98,7 +101,12 @@ class ExperimentControllerIntegrationTest {
         registry.add("ai-backend.url", () -> "http://localhost:" + aiBackendStub.getAddress().getPort());
     }
 
-    private String registerAndGetToken(String username) throws Exception {
+    // usernamePrefix stays readable in test failures/Allure reports (which test created this
+    // user), while the Faker-generated suffix guarantees it's actually unique instead of
+    // relying on every call site inventing its own never-reused literal.
+    private String registerAndGetToken(String usernamePrefix) throws Exception {
+        String username = usernamePrefix + "_" + FAKER.number().digits(8);
+
         MvcResult result = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"password123\"}"))
