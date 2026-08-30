@@ -67,11 +67,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as ProblemDetail | null
 
-    // A 401/403 with no JSON body means Spring Security rejected the request before it
-    // reached a controller — i.e. the token is missing, invalid, or expired, not a
-    // legitimate per-resource authorization failure (those come back with a ProblemDetail
-    // body, e.g. "you don't own this compare job"). Treat it as a dead session: without
-    // this, an expired token makes every action on the page silently fail forever, since
+    // A 401/403 with no JSON body means Spring Security rejected the request before it ever
+    // reached a controller: the token is missing, invalid, or expired. A legitimate
+    // per-resource authorization failure comes back with a ProblemDetail body instead (e.g.
+    // "you don't own this compare job"). Treat the former as a dead session — without this,
+    // an expired token makes every action on the page silently fail forever, since
     // ProtectedRoute only checks that a token is present, not that it's still valid.
     if ((response.status === 401 || response.status === 403) && problem === null && getToken()) {
       clearToken()

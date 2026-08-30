@@ -21,9 +21,9 @@ function formatPercentTick(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
-// Expected Calibration Error: the count-weighted average gap between a bin's accuracy and
-// its average predicted confidence — a single number summarizing how well "confidence" tracks
-// actual correctness across the whole reliability diagram. Lower is better; 0 is perfect.
+// Expected Calibration Error: the count-weighted average gap between a bin's accuracy and its
+// average predicted confidence. One number for how well "confidence" tracks actual
+// correctness across the whole reliability diagram. Lower is better, 0 is perfect.
 export function computeECE(bins: CalibrationBin[]): number | null {
   const totalCount = bins.reduce((sum, bin) => sum + bin.count, 0)
   if (totalCount === 0) return null

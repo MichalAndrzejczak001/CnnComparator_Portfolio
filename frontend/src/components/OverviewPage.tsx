@@ -59,8 +59,8 @@ export function OverviewPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Aggregate stats need the full history in one shot, not one paginated page — request a
-    // page large enough to cover realistic usage.
+    // Aggregate stats need the full history in one shot, not a single paginated page, so
+    // request a page size large enough to cover realistic usage.
     listExperiments({ size: 1000 })
       .then((data) => setExperiments(data.content))
       .catch((err) => setError(err instanceof ApiError ? err.detail : 'Could not load overview.'))

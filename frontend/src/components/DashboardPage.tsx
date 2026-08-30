@@ -36,8 +36,8 @@ export function DashboardPage() {
   const [deletingSelected, setDeletingSelected] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
-  // A new filter may not have a page 2 at all — start back at the first page rather than
-  // risking an out-of-range request.
+  // A new filter might not even have a page 2. Reset to the first page instead of risking
+  // an out-of-range request.
   useEffect(() => {
     setPage(0)
   }, [modelFilter, datasetFilter])
@@ -53,7 +53,7 @@ export function DashboardPage() {
           dataset: datasetFilter ?? undefined,
         })
         // Deleting the last item(s) on a page can leave it empty even though earlier pages
-        // still have results — step back instead of showing a dead end.
+        // still have results. Step back a page instead of showing a dead end.
         if (data.content.length === 0 && targetPage > 0) {
           setPage(targetPage - 1)
           return

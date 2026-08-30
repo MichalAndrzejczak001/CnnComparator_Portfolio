@@ -4,8 +4,8 @@ interface LineSeries {
   label: string
   color: string
   values: number[]
-  // Rendered as a dashed line and left out of the legend (its solid counterpart, same
-  // color, represents the pair there) — used for overlaying a train curve on a validation one.
+  // Rendered as a dashed line and left out of the legend (its solid counterpart, same color,
+  // already represents the pair there). Used for overlaying a train curve on a validation one.
   dashed?: boolean
 }
 

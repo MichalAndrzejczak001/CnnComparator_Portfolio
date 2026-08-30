@@ -203,8 +203,8 @@ const MODELS_DATA: ModelData[] = [
   },
 ]
 
-// Each model's one-line "what makes it different" — not already captured by a spec value,
-// so it isn't derived from MODELS_DATA like the other comparison-table rows are.
+// Each model's one-line "what makes it different". Not captured by any spec value, so
+// unlike the other comparison-table rows this isn't derived from MODELS_DATA.
 const KEY_FEATURES: Record<string, string> = {
   simple_cnn: '—',
   lenet5: 'Average pooling',
@@ -231,8 +231,8 @@ const COMPARE_DEFAULT_DIR: Record<CompareSortKey, SortDir> = {
 }
 
 // Parses the already-correct display strings ("225K–316K", "~28.1M") back into a raw number
-// for sorting, rather than storing a second, separately-maintained numeric field — so the
-// comparison table's sort order can't drift from what the spec cards actually display.
+// for sorting. Avoids keeping a second, separately-maintained numeric field whose sort order
+// could drift from what the spec cards actually display.
 function parseApproxNumber(text: string): number {
   const match = text.replace('~', '').match(/^([\d.]+)([KM]?)/)
   if (!match) return 0
