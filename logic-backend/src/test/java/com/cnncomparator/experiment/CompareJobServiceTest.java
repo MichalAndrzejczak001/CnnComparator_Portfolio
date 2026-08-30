@@ -29,9 +29,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CompareJobServiceTest {
 
-    // Runs submitted jobs synchronously on the calling thread, so startJob() doesn't return
-    // until runJob() has already reached a terminal status — no polling/sleeping needed to
-    // observe the result in most tests.
+    // Runs jobs synchronously on the calling thread, so startJob() only returns once runJob()
+    // has already hit a terminal status. Most tests don't need to poll or sleep because of it.
     private static final ExecutorService DIRECT_EXECUTOR = new AbstractExecutorService() {
         @Override
         public void shutdown() {
@@ -107,8 +106,8 @@ class CompareJobServiceTest {
         CompareJobStatus status = compareJobService.getStatus(jobId, "michal");
 
         assertThat(status.status()).isEqualTo("FAILED");
-        // The real exception message ("ai-backend unreachable", which could leak internal
-        // details like the ai-backend URL) must not reach the client — only the log does.
+        // "ai-backend unreachable" is the real message; it should never reach the client
+        // (could leak the ai-backend URL), only the log.
         assertThat(status.error()).isEqualTo("The comparison failed due to an unexpected error");
         assertThat(status.results()).isEmpty();
     }

@@ -5,9 +5,9 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 
-// Upper bounds mirror the frontend's input ranges (NewExperimentModal/ComparePage) — they
-// exist to stop a single request from tying up the training worker indefinitely, not to
-// express a "valid" hyperparameter range.
+// Bounds mirror the frontend's input ranges (NewExperimentModal/ComparePage). Not meant to
+// express a "valid" hyperparameter range, just to keep one request from tying up the
+// training worker indefinitely.
 public record TrainingConfig(
 
         @Positive

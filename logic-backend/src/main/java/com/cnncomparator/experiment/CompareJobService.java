@@ -36,9 +36,9 @@ public class CompareJobService {
     @Value("${ai-backend.url}")
     private String aiBackendUrl;
 
-    // Finished jobs stay in the map so clients can poll a final status, but nothing ever
-    // reads them again after this long — without eviction the map grows without bound for
-    // the life of the process.
+    // Finished jobs stay around so clients can poll a final status, but nothing reads them
+    // again after this long. Without eviction the map just keeps growing for the life of
+    // the process.
     @Value("${compare-jobs.retention:PT1H}")
     private Duration jobRetention;
 
@@ -115,9 +115,9 @@ public class CompareJobService {
             job.setCurrentModel(null);
             job.setStatus(CompareJob.Status.COMPLETED);
         } catch (Exception e) {
-            // Full exception (incl. message, which may embed internal details like the
-            // ai-backend URL) goes to the server log only — getStatus() exposes job.getError()
-            // straight to the client, so it must stay a generic, safe-to-display message.
+            // Keep the real exception out of job.getError(); its message can embed internal
+            // details like the ai-backend URL, and getStatus() sends that field straight to
+            // the client.
             log.error("Compare job {} failed", job.getId(), e);
             job.setError("The comparison failed due to an unexpected error");
             job.setStatus(CompareJob.Status.FAILED);

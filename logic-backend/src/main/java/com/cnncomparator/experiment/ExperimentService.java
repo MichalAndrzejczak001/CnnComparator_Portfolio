@@ -45,10 +45,10 @@ public class ExperimentService {
     @Value("${ai-backend.url}")
     private String aiBackendUrl;
 
-    // Deliberately not @Transactional: it calls out to ai-backend first, which can run for
-    // minutes (see RestTemplateConfig's read timeout). Holding a DB transaction/connection
-    // open for that long would starve the connection pool for no benefit — the only DB work
-    // here is the final save(), which Spring Data already runs in its own short transaction.
+    // No @Transactional here on purpose. This calls ai-backend first, which can run for
+    // minutes (see RestTemplateConfig's read timeout), and holding a DB connection open that
+    // long would starve the pool for nothing — the only DB work is the final save(), and
+    // Spring Data already wraps that in its own short transaction.
     public ExperimentResponse createExperiment(ExperimentRequest request, String username) {
         User user = findUser(username);
 

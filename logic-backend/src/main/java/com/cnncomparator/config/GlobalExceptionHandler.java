@@ -69,8 +69,8 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed or incomplete request");
     }
 
-    // ai-backend rejected the request as invalid (e.g. a corrupt image upload) — this is a
-    // client error, not an outage, so it must not be reported as the generic 502 below.
+    // ai-backend rejecting the request (e.g. a corrupt image upload) is a client error, not
+    // an outage. Don't report it as the generic 502 below.
     @ExceptionHandler(HttpClientErrorException.class)
     public ProblemDetail handleAiBackendRejection(HttpClientErrorException ex) {
         log.warn("ai-backend rejected the request: {}", ex.getResponseBodyAsString());
