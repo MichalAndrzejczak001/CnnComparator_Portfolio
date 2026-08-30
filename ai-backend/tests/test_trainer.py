@@ -141,9 +141,9 @@ def test_model_size_bytes_matches_manual_sum_for_a_model_without_buffers():
 
 
 def test_model_size_bytes_exceeds_raw_parameter_bytes_for_a_model_with_batchnorm():
-    # ResNet18 has BatchNorm layers, whose running_mean/running_var/num_batches_tracked
-    # buffers are saved in state_dict() but aren't counted by count_parameters() — so model
-    # size in bytes should be strictly larger than param_count * 4 bytes (float32).
+    # ResNet18's BatchNorm layers save running_mean/running_var/num_batches_tracked buffers
+    # in state_dict(), but count_parameters() doesn't count those. So model size in bytes
+    # should come out strictly larger than param_count * 4 bytes (float32).
     model = ResNet18(1, 10)
     param_bytes = count_parameters(model) * 4
 

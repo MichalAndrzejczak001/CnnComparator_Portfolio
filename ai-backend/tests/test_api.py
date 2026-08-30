@@ -108,7 +108,7 @@ def test_experiment_training_failure_is_reported_as_500_not_a_crash(monkeypatch)
     })
 
     assert response.status_code == 500
-    # The real exception message must not leak to the client — only to the server log.
+    # The real exception message should only end up in the server log, not the response.
     assert "CUDA out of memory" not in response.text
 
 

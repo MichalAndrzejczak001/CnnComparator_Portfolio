@@ -34,9 +34,9 @@ app = FastAPI()
 SAVED_MODELS_DIR = "saved_models"
 os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 
-# load_dataset's SPLIT_SEED only makes the train/val split reproducible — weight init and
-# batch shuffling still draw from torch's global RNG, so without this "Rerun experiment"
-# would silently produce a different model every time.
+# load_dataset's SPLIT_SEED only makes the train/val split reproducible. Weight init and
+# batch shuffling still draw from torch's global RNG, so without this, "Rerun experiment"
+# would silently give a different model every time.
 TRAINING_SEED = 42
 
 MNIST_CLASSES = [str(i) for i in range(10)]
@@ -103,9 +103,9 @@ def _load_inference_model(
     return model, in_channels, input_size, num_classes, class_labels, transform
 
 
-# Matches logic-backend's multipart max-file-size (application.yaml) — that limit only
-# protects requests routed through logic-backend, and ai-backend has no auth of its own, so
-# it must not assume every caller already enforced this.
+# Matches logic-backend's multipart max-file-size (application.yaml). That limit only covers
+# requests routed through logic-backend though, and ai-backend has no auth of its own, so it
+# can't assume every caller already checked this.
 MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
 
 
