@@ -2,6 +2,11 @@
 
 A web application for training and comparing convolutional neural network architectures on image classification tasks. Train six different CNN architectures on three standard datasets, then compare accuracy, loss/accuracy curves, calibration, confusion matrices and efficiency (parameters, inference latency, throughput) side by side — with Grad-CAM visualizations to see what each model actually learned.
 
+<p align="center">
+  <img src="docs/screenshots/landing.jpg" alt="CnnComparator landing page" width="49%">
+  <img src="docs/screenshots/experiment-detail.jpg" alt="Experiment results — loss/accuracy curves and confusion matrix" width="49%">
+</p>
+
 ## Features
 
 - **6 CNN architectures** — SimpleCNN, LeNet-5, AlexNet, VGG11, ResNet18, MobileNetV1
@@ -107,9 +112,9 @@ Each layer has its own test suite, run independently. These run against an in-pr
 context (H2, MockMvc, a stubbed ai-backend) and are what CI runs on every push:
 
 ```bash
-cd ai-backend && pytest                # 52 tests — models, trainer, API (incl. corrupt-upload cases, calibration binning)
-cd logic-backend && ./gradlew test     # 48 tests — 16 unit, 23 MockMvc integration (incl. destructive/security cases), 9 Cucumber BDD
-cd frontend && npm run test            # 43 unit tests (Vitest, incl. React Testing Library and CSV-export coverage)
+cd ai-backend && pytest                # 64 tests — models, trainer, API (incl. corrupt-upload cases, calibration binning)
+cd logic-backend && ./gradlew test     # 64 tests — 26 unit, 29 MockMvc/context integration (incl. destructive/security cases), 9 Cucumber BDD
+cd frontend && npm run test            # 49 unit tests (Vitest, incl. React Testing Library and CSV-export coverage)
 cd frontend && npm run test:e2e        # 13 end-to-end tests (Cypress, requires the dev server running)
 ```
 
