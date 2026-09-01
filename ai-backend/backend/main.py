@@ -39,6 +39,7 @@ os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 # would silently give a different model every time.
 TRAINING_SEED = 42
 
+
 def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str], transforms.Compose]:
     if dataset not in DATASET_SPECS:
         raise HTTPException(status_code=400, detail=f"Unknown dataset: {dataset}")
