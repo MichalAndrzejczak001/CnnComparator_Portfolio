@@ -18,7 +18,7 @@ from torchvision import transforms
 matplotlib.use("Agg")
 import matplotlib.cm as cm
 
-from backend.datasets.loader import load_dataset
+from backend.datasets.loader import DATASET_SPECS, load_dataset
 from backend.models.factory import MODEL_NAMES, create_model
 from backend.schemas import (
     ClassConfidence, CompareConfig, ExperimentConfig, GradCamResponse, PredictResponse,
@@ -39,40 +39,18 @@ os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 # would silently give a different model every time.
 TRAINING_SEED = 42
 
-MNIST_CLASSES = [str(i) for i in range(10)]
-CIFAR10_CLASSES = [
-    "airplane", "automobile", "bird", "cat", "deer",
-    "dog", "frog", "horse", "ship", "truck",
-]
-FASHION_MNIST_CLASSES = [
-    "T-shirt", "Trouser", "Pullover", "Dress", "Coat",
-    "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot",
-]
-
-
 def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str], transforms.Compose]:
-    if dataset == "mnist":
-        transform = transforms.Compose([
-            transforms.Grayscale(1),
-            transforms.Resize((32, 32)),
-            transforms.ToTensor(),
-        ])
-        return 1, (32, 32), 10, MNIST_CLASSES, transform
-    elif dataset == "fashion_mnist":
-        transform = transforms.Compose([
-            transforms.Grayscale(1),
-            transforms.Resize((32, 32)),
-            transforms.ToTensor(),
-        ])
-        return 1, (32, 32), 10, FASHION_MNIST_CLASSES, transform
-    elif dataset == "cifar10":
-        transform = transforms.Compose([
-            transforms.Resize((32, 32)),
-            transforms.ToTensor(),
-        ])
-        return 3, (32, 32), 10, CIFAR10_CLASSES, transform
-    else:
+    if dataset not in DATASET_SPECS:
         raise HTTPException(status_code=400, detail=f"Unknown dataset: {dataset}")
+
+    spec = DATASET_SPECS[dataset]
+    # Uploaded images (via /predict, /gradcam) are arbitrary user input, unlike the
+    # canonical torchvision datasets in loader.py — force the channel count to match
+    # what the model was trained on instead of assuming the upload is already correct.
+    steps = [transforms.Grayscale(1)] if spec.in_channels == 1 else []
+    steps += [transforms.Resize(spec.input_size), transforms.ToTensor()]
+
+    return spec.in_channels, spec.input_size, spec.num_classes, spec.class_labels, transforms.Compose(steps)
 
 
 def _load_inference_model(
