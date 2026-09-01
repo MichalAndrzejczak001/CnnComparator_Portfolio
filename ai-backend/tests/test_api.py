@@ -145,6 +145,26 @@ def test_invalid_dataset_rejected():
     assert response.status_code == 422
 
 
+def test_predict_invalid_model_name_returns_422():
+    fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+    response = client.post("/predict", data={
+        "model_name": "transformer",
+        "dataset": "mnist",
+        "model_id": "550e8400-e29b-41d4-a716-446655440000",
+    }, files={"file": ("test.png", fake_image, "image/png")})
+    assert response.status_code == 422
+
+
+def test_predict_invalid_dataset_returns_422():
+    fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+    response = client.post("/predict", data={
+        "model_name": "simple_cnn",
+        "dataset": "imagenet",
+        "model_id": "550e8400-e29b-41d4-a716-446655440000",
+    }, files={"file": ("test.png", fake_image, "image/png")})
+    assert response.status_code == 422
+
+
 def test_predict_missing_weights_returns_404():
     fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
     response = client.post("/predict", data={

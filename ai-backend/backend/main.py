@@ -3,7 +3,7 @@ import io
 import logging
 import os
 import uuid
-from typing import Dict, List, Tuple
+from typing import Dict, List, Literal, Tuple
 
 import matplotlib
 import numpy as np
@@ -38,6 +38,12 @@ os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 # batch shuffling still draw from torch's global RNG, so without this, "Rerun experiment"
 # would silently give a different model every time.
 TRAINING_SEED = 42
+
+# Built from the same registries as the rest of the module (not a third hand-written list) so
+# /predict and /gradcam reject an unknown model_name/dataset with FastAPI's own 422, the same
+# way /experiments and /compare already do via schemas.py's Literal fields.
+ModelName = Literal[tuple(MODEL_NAMES)]
+DatasetName = Literal[tuple(DATASET_SPECS)]
 
 
 def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str], transforms.Compose]:
@@ -321,8 +327,8 @@ def compare_models(config: CompareConfig):
 
 @app.post("/predict", response_model=PredictResponse)
 async def predict(
-    model_name: str = Form(...),
-    dataset: str = Form(...),
+    model_name: ModelName = Form(...),
+    dataset: DatasetName = Form(...),
     model_id: str = Form(...),
     file: UploadFile = File(...),
 ):
@@ -353,8 +359,8 @@ async def predict(
 
 @app.post("/gradcam", response_model=GradCamResponse)
 async def gradcam(
-    model_name: str = Form(...),
-    dataset: str = Form(...),
+    model_name: ModelName = Form(...),
+    dataset: DatasetName = Form(...),
     model_id: str = Form(...),
     file: UploadFile = File(...),
 ):
