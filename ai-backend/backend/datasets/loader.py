@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Type
 
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -15,12 +15,14 @@ class DatasetSpec:
     input_size: Tuple[int, int]
     num_classes: int
     class_labels: List[str]
+    dataset_cls: Type[Dataset]
 
 
 DATASET_SPECS: Dict[str, DatasetSpec] = {
     "mnist": DatasetSpec(
         in_channels=1, input_size=(32, 32), num_classes=10,
         class_labels=[str(i) for i in range(10)],
+        dataset_cls=datasets.MNIST,
     ),
     "fashion_mnist": DatasetSpec(
         in_channels=1, input_size=(32, 32), num_classes=10,
@@ -28,6 +30,7 @@ DATASET_SPECS: Dict[str, DatasetSpec] = {
             "T-shirt", "Trouser", "Pullover", "Dress", "Coat",
             "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot",
         ],
+        dataset_cls=datasets.FashionMNIST,
     ),
     "cifar10": DatasetSpec(
         in_channels=3, input_size=(32, 32), num_classes=10,
@@ -35,6 +38,7 @@ DATASET_SPECS: Dict[str, DatasetSpec] = {
             "airplane", "automobile", "bird", "cat", "deer",
             "dog", "frog", "horse", "ship", "truck",
         ],
+        dataset_cls=datasets.CIFAR10,
     ),
 }
 
@@ -62,14 +66,7 @@ def load_dataset(
         transforms.ToTensor(),
     ])
 
-    if name == "mnist":
-        dataset_cls = datasets.MNIST
-    elif name == "fashion_mnist":
-        dataset_cls = datasets.FashionMNIST
-    else:
-        dataset_cls = datasets.CIFAR10
-
-    train = dataset_cls(root="./data", train=True, download=True, transform=transform)
-    test = dataset_cls(root="./data", train=False, download=True, transform=transform)
+    train = spec.dataset_cls(root="./data", train=True, download=True, transform=transform)
+    test = spec.dataset_cls(root="./data", train=False, download=True, transform=transform)
     train_loader, val_loader = _split_train_val(train, batch_size)
     return train_loader, val_loader, DataLoader(test, batch_size=batch_size), spec
