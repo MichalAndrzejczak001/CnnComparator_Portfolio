@@ -18,6 +18,16 @@ def test_experiment_config_and_compare_config_agree_on_dataset_literal():
     assert set(experiment_datasets) == set(compare_datasets)
 
 
+@pytest.mark.parametrize("model_name", MODEL_NAMES)
+def test_experiment_config_accepts_every_known_model(model_name):
+    ExperimentConfig(model=model_name, dataset="mnist", training={})
+
+
+def test_experiment_config_rejects_unknown_model():
+    with pytest.raises(ValidationError):
+        ExperimentConfig(model="not_a_model", dataset="mnist", training={})
+
+
 @pytest.mark.parametrize(
     "overrides",
     [
