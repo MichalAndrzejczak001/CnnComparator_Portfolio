@@ -174,7 +174,7 @@ def _generate_sample_gradcams(
 ) -> List[Dict[str, object]]:
     model.eval()
     target_layer = _get_target_layer(model, model_name)
-    seen = {}
+    seen = set()
     samples = []
 
     for images, labels in test_loader:
@@ -198,7 +198,7 @@ def _generate_sample_gradcams(
                     "confidence": confidence,
                     "gradcam_image": gradcam_image,
                 })
-                seen[cls] = True
+                seen.add(cls)
             except Exception:
                 logger.exception("Failed to generate sample Grad-CAM for class %s", cls)
 
@@ -325,23 +325,29 @@ async def predict(
     model_id: str = Form(...),
     file: UploadFile = File(...),
 ):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, spec, transform = _load_inference_model(
-        model_name, dataset, model_id, device
-    )
+    try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, spec, transform = _load_inference_model(
+            model_name, dataset, model_id, device
+        )
 
-    image = _read_uploaded_image(file)
-    tensor = transform(image).unsqueeze(0).to(device)
+        image = _read_uploaded_image(file)
+        tensor = transform(image).unsqueeze(0).to(device)
 
-    with torch.no_grad():
-        output = model(tensor)
-        probs = torch.softmax(output, dim=1)[0]
+        with torch.no_grad():
+            output = model(tensor)
+            probs = torch.softmax(output, dim=1)[0]
 
-    pred_idx = probs.argmax().item()
-    confidences = [
-        ClassConfidence(label=spec.class_labels[i], confidence=probs[i].item())
-        for i in range(spec.num_classes)
-    ]
+        pred_idx = probs.argmax().item()
+        confidences = [
+            ClassConfidence(label=spec.class_labels[i], confidence=probs[i].item())
+            for i in range(spec.num_classes)
+        ]
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Prediction failed for model=%s dataset=%s", model_name, dataset)
+        raise HTTPException(status_code=500, detail="Prediction failed due to an unexpected error")
 
     return PredictResponse(
         predicted_class=spec.class_labels[pred_idx],
@@ -357,27 +363,33 @@ async def gradcam(
     model_id: str = Form(...),
     file: UploadFile = File(...),
 ):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, spec, transform = _load_inference_model(
-        model_name, dataset, model_id, device
-    )
+    try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, spec, transform = _load_inference_model(
+            model_name, dataset, model_id, device
+        )
 
-    image = _read_uploaded_image(file)
-    tensor = transform(image).unsqueeze(0)
+        image = _read_uploaded_image(file)
+        tensor = transform(image).unsqueeze(0)
 
-    with torch.no_grad():
-        output = model(tensor.to(device))
-        probs = torch.softmax(output, dim=1)[0]
+        with torch.no_grad():
+            output = model(tensor.to(device))
+            probs = torch.softmax(output, dim=1)[0]
 
-    pred_idx = probs.argmax().item()
-    target_layer = _get_target_layer(model, model_name)
-    cam = _compute_grad_cam(model, tensor, target_layer, pred_idx, device)
-    gradcam_image = _overlay_grad_cam(cam, tensor)
+        pred_idx = probs.argmax().item()
+        target_layer = _get_target_layer(model, model_name)
+        cam = _compute_grad_cam(model, tensor, target_layer, pred_idx, device)
+        gradcam_image = _overlay_grad_cam(cam, tensor)
 
-    confidences = [
-        ClassConfidence(label=spec.class_labels[i], confidence=probs[i].item())
-        for i in range(spec.num_classes)
-    ]
+        confidences = [
+            ClassConfidence(label=spec.class_labels[i], confidence=probs[i].item())
+            for i in range(spec.num_classes)
+        ]
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Grad-CAM generation failed for model=%s dataset=%s", model_name, dataset)
+        raise HTTPException(status_code=500, detail="Grad-CAM generation failed due to an unexpected error")
 
     return GradCamResponse(
         predicted_class=spec.class_labels[pred_idx],

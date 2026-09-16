@@ -236,3 +236,40 @@ def test_gradcam_corrupt_image_returns_400(tmp_path, monkeypatch):
 
     assert response.status_code == 400
     assert "Invalid or unsupported image file" in response.json()["detail"]
+
+
+def test_predict_unexpected_failure_is_reported_as_500_not_a_crash(tmp_path, monkeypatch):
+    def _boom(*args, **kwargs):
+        raise RuntimeError("disk on fire")
+
+    model_id = "550e8400-e29b-41d4-a716-446655440004"
+    _save_dummy_weights(tmp_path, monkeypatch, model_id)
+    monkeypatch.setattr("backend.main._read_uploaded_image", _boom)
+
+    response = client.post("/predict", data={
+        "model_name": "simple_cnn",
+        "dataset": "mnist",
+        "model_id": model_id,
+    }, files={"file": ("test.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100), "image/png")})
+
+    assert response.status_code == 500
+    # The real exception message should only end up in the server log, not the response.
+    assert "disk on fire" not in response.text
+
+
+def test_gradcam_unexpected_failure_is_reported_as_500_not_a_crash(tmp_path, monkeypatch):
+    def _boom(*args, **kwargs):
+        raise RuntimeError("disk on fire")
+
+    model_id = "550e8400-e29b-41d4-a716-446655440005"
+    _save_dummy_weights(tmp_path, monkeypatch, model_id)
+    monkeypatch.setattr("backend.main._read_uploaded_image", _boom)
+
+    response = client.post("/gradcam", data={
+        "model_name": "simple_cnn",
+        "dataset": "mnist",
+        "model_id": model_id,
+    }, files={"file": ("test.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100), "image/png")})
+
+    assert response.status_code == 500
+    assert "disk on fire" not in response.text
