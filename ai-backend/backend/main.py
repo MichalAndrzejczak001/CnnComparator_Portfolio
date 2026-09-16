@@ -56,7 +56,7 @@ def _resolve_dataset(dataset: str) -> Tuple[DatasetSpec, transforms.Compose]:
 
 def _load_inference_model(
         model_name: str, dataset: str, model_id: str, device: str
-) -> Tuple[nn.Module, int, Tuple[int, int], int, List[str], transforms.Compose]:
+) -> Tuple[nn.Module, DatasetSpec, transforms.Compose]:
     if model_name not in MODEL_NAMES:
         raise HTTPException(status_code=400, detail=f"Unknown model: {model_name}")
 
@@ -79,7 +79,7 @@ def _load_inference_model(
     model.to(device)
     model.eval()
 
-    return model, spec.in_channels, spec.input_size, spec.num_classes, spec.class_labels, transform
+    return model, spec, transform
 
 
 # Matches logic-backend's multipart max-file-size (application.yaml). That limit only covers
@@ -326,7 +326,7 @@ async def predict(
     file: UploadFile = File(...),
 ):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, _, _, num_classes, class_labels, transform = _load_inference_model(
+    model, spec, transform = _load_inference_model(
         model_name, dataset, model_id, device
     )
 
@@ -339,12 +339,12 @@ async def predict(
 
     pred_idx = probs.argmax().item()
     confidences = [
-        ClassConfidence(label=class_labels[i], confidence=probs[i].item())
-        for i in range(num_classes)
+        ClassConfidence(label=spec.class_labels[i], confidence=probs[i].item())
+        for i in range(spec.num_classes)
     ]
 
     return PredictResponse(
-        predicted_class=class_labels[pred_idx],
+        predicted_class=spec.class_labels[pred_idx],
         predicted_index=pred_idx,
         confidences=confidences,
     )
@@ -358,7 +358,7 @@ async def gradcam(
     file: UploadFile = File(...),
 ):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, _, _, num_classes, class_labels, transform = _load_inference_model(
+    model, spec, transform = _load_inference_model(
         model_name, dataset, model_id, device
     )
 
@@ -375,12 +375,12 @@ async def gradcam(
     gradcam_image = _overlay_grad_cam(cam, tensor)
 
     confidences = [
-        ClassConfidence(label=class_labels[i], confidence=probs[i].item())
-        for i in range(num_classes)
+        ClassConfidence(label=spec.class_labels[i], confidence=probs[i].item())
+        for i in range(spec.num_classes)
     ]
 
     return GradCamResponse(
-        predicted_class=class_labels[pred_idx],
+        predicted_class=spec.class_labels[pred_idx],
         predicted_index=pred_idx,
         confidences=confidences,
         gradcam_image=gradcam_image,
