@@ -10,9 +10,10 @@ from .resnet18_custom import ResNet18
 from .mobilenet import MobileNetV1
 
 # Single source of truth for valid model names on the Python side. schemas.py's
-# Literal["simple_cnn", ...] can't be built from this list at import time (Literal needs
-# literal values, not a runtime list, under the Python 3.10 this project targets), so it's
-# kept in sync manually and checked against MODEL_NAMES by tests/test_schemas.py.
+# ExperimentConfig.model still hard-codes this list as Literal["simple_cnn", ...] instead of
+# reusing MODEL_NAMES directly (Literal[tuple(MODEL_NAMES)] does work for this - see main.py's
+# ModelName/DatasetName), so it's kept in sync manually and checked against MODEL_NAMES by
+# tests/test_schemas.py.
 MODEL_FACTORIES = {
     "simple_cnn": lambda in_channels, num_classes, input_size: SimpleCNN(in_channels, num_classes, input_size),
     "lenet5": lambda in_channels, num_classes, input_size: LeNet5(in_channels, num_classes, input_size),
