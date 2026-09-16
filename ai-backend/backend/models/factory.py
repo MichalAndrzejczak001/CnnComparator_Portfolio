@@ -9,11 +9,10 @@ from .vgg11 import VGG11
 from .resnet18_custom import ResNet18
 from .mobilenet import MobileNetV1
 
-# Single source of truth for valid model names on the Python side. schemas.py's
-# ExperimentConfig.model still hard-codes this list as Literal["simple_cnn", ...] instead of
-# reusing MODEL_NAMES directly (Literal[tuple(MODEL_NAMES)] does work for this - see main.py's
-# ModelName/DatasetName), so it's kept in sync manually and checked against MODEL_NAMES by
-# tests/test_schemas.py.
+# Single source of truth for valid model names on the Python side. schemas.py builds its
+# ExperimentConfig.model Literal from this list directly (Literal[tuple(MODEL_NAMES)]), so
+# there's nothing to keep in sync manually here anymore; test_schemas.py still asserts the
+# two agree, as a regression guard against that import getting swapped for a hard-coded list.
 MODEL_FACTORIES = {
     "simple_cnn": lambda in_channels, num_classes, input_size: SimpleCNN(in_channels, num_classes, input_size),
     "lenet5": lambda in_channels, num_classes, input_size: LeNet5(in_channels, num_classes, input_size),

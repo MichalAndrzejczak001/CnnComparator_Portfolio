@@ -1,6 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import Literal, List
 
+from backend.datasets.loader import DATASET_SPECS
+from backend.models.factory import MODEL_NAMES
+
+# Built from MODEL_NAMES/DATASET_SPECS rather than hard-coded, so a new model/dataset only
+# needs to be added in one place. main.py reuses these same aliases for /predict and
+# /gradcam's Form fields, so all four endpoints reject an unknown model/dataset the same way.
+ModelName = Literal[tuple(MODEL_NAMES)]
+DatasetName = Literal[tuple(DATASET_SPECS)]
+
 
 class TrainingConfig(BaseModel):
     # Bounds mirror logic-backend's TrainingConfig (dto/TrainingConfig.java) and the frontend's
@@ -12,14 +21,13 @@ class TrainingConfig(BaseModel):
 
 
 class ExperimentConfig(BaseModel):
-    # Keep in sync with models.factory.MODEL_NAMES (test_schemas.py checks this).
-    model: Literal["simple_cnn", "lenet5", "alexnet", "vgg11", "resnet18", "mobilenet"]
-    dataset: Literal["mnist", "cifar10", "fashion_mnist"]
+    model: ModelName
+    dataset: DatasetName
     training: TrainingConfig
 
 
 class CompareConfig(BaseModel):
-    dataset: Literal["mnist", "cifar10", "fashion_mnist"]
+    dataset: DatasetName
     training: TrainingConfig
 
 

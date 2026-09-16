@@ -3,7 +3,7 @@ import io
 import logging
 import os
 import uuid
-from typing import Dict, List, Literal, Tuple
+from typing import Dict, List, Tuple
 
 import matplotlib
 import numpy as np
@@ -21,7 +21,7 @@ import matplotlib.cm as cm
 from backend.datasets.loader import DATASET_SPECS, load_dataset
 from backend.models.factory import MODEL_NAMES, create_model
 from backend.schemas import (
-    ClassConfidence, CompareConfig, ExperimentConfig, GradCamResponse, PredictResponse,
+    ClassConfidence, CompareConfig, DatasetName, ExperimentConfig, GradCamResponse, ModelName, PredictResponse,
 )
 from backend.training.trainer import (
     benchmark_inference, compute_model_size_bytes, compute_training_throughput, count_parameters, evaluate, train,
@@ -38,12 +38,6 @@ os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 # batch shuffling still draw from torch's global RNG, so without this, "Rerun experiment"
 # would silently give a different model every time.
 TRAINING_SEED = 42
-
-# Built from the same registries as the rest of the module (not a third hand-written list) so
-# /predict and /gradcam reject an unknown model_name/dataset with FastAPI's own 422, the same
-# way /experiments and /compare already do via schemas.py's Literal fields.
-ModelName = Literal[tuple(MODEL_NAMES)]
-DatasetName = Literal[tuple(DATASET_SPECS)]
 
 
 def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str], transforms.Compose]:
