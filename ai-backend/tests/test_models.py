@@ -71,6 +71,12 @@ class TestVGG11:
         model = VGG11(in_channels=1, num_classes=3)
         assert model(torch.zeros(1, 1, 32, 32)).shape == (1, 3)
 
+    def test_custom_input_size(self):
+        # VGG11 has no adaptive pooling, unlike ResNet18/MobileNet — its classifier's input
+        # size is derived from input_size, so a non-default resolution must actually work.
+        model = VGG11(in_channels=3, num_classes=10, input_size=(64, 64))
+        assert model(torch.zeros(1, 3, 64, 64)).shape == (1, 10)
+
 
 class TestResNet18:
     def test_output_shape_mnist(self):

@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class VGG11(nn.Module):
-    def __init__(self, in_channels, num_classes):
+    def __init__(self, in_channels, num_classes, input_size=(32, 32)):
         super().__init__()
         self.features = nn.Sequential(
             nn.Conv2d(in_channels, 64, kernel_size=3, padding=1),
@@ -29,7 +29,7 @@ class VGG11(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
-        flatten_size = self._get_flatten_size(in_channels)
+        flatten_size = self._get_flatten_size(in_channels, input_size)
         self.classifier = nn.Sequential(
             nn.Linear(flatten_size, 4096),
             nn.ReLU(inplace=True),
@@ -38,9 +38,9 @@ class VGG11(nn.Module):
             nn.Linear(4096, num_classes),
         )
 
-    def _get_flatten_size(self, in_channels):
+    def _get_flatten_size(self, in_channels, input_size):
         with torch.no_grad():
-            x = torch.zeros(1, in_channels, 32, 32)
+            x = torch.zeros(1, in_channels, *input_size)
             x = self.features(x)
             return x.view(1, -1).size(1)
 

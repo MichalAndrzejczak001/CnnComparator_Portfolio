@@ -13,7 +13,7 @@ def _dw_sep(in_ch, out_ch, stride=1):
 
 
 class MobileNetV1(nn.Module):
-    def __init__(self, in_channels, num_classes, input_size=(32, 32)):
+    def __init__(self, in_channels, num_classes):
         super().__init__()
         self.stem = nn.Sequential(
             nn.Conv2d(in_channels, 32, kernel_size=3, padding=1, bias=False),

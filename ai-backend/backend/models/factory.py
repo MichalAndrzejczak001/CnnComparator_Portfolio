@@ -17,9 +17,9 @@ MODEL_FACTORIES = {
     "simple_cnn": lambda in_channels, num_classes, input_size: SimpleCNN(in_channels, num_classes, input_size),
     "lenet5": lambda in_channels, num_classes, input_size: LeNet5(in_channels, num_classes, input_size),
     "alexnet": lambda in_channels, num_classes, input_size: AlexNet(in_channels, num_classes, input_size),
-    "vgg11": lambda in_channels, num_classes, input_size: VGG11(in_channels, num_classes),
+    "vgg11": lambda in_channels, num_classes, input_size: VGG11(in_channels, num_classes, input_size),
     "resnet18": lambda in_channels, num_classes, input_size: ResNet18(in_channels, num_classes),
-    "mobilenet": lambda in_channels, num_classes, input_size: MobileNetV1(in_channels, num_classes, input_size),
+    "mobilenet": lambda in_channels, num_classes, input_size: MobileNetV1(in_channels, num_classes),
 }
 
 MODEL_NAMES = list(MODEL_FACTORIES.keys())
