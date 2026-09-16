@@ -18,7 +18,7 @@ from torchvision import transforms
 matplotlib.use("Agg")
 import matplotlib.cm as cm
 
-from backend.datasets.loader import DATASET_SPECS, load_dataset
+from backend.datasets.loader import DATASET_SPECS, DatasetSpec, load_dataset
 from backend.models.factory import MODEL_NAMES, create_model
 from backend.schemas import (
     ClassConfidence, CompareConfig, DatasetName, ExperimentConfig, GradCamResponse, ModelName, PredictResponse,
@@ -40,7 +40,7 @@ os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 TRAINING_SEED = 42
 
 
-def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str], transforms.Compose]:
+def _resolve_dataset(dataset: str) -> Tuple[DatasetSpec, transforms.Compose]:
     if dataset not in DATASET_SPECS:
         raise HTTPException(status_code=400, detail=f"Unknown dataset: {dataset}")
 
@@ -51,7 +51,7 @@ def _resolve_dataset(dataset: str) -> Tuple[int, Tuple[int, int], int, List[str]
     steps = [transforms.Grayscale(1)] if spec.in_channels == 1 else []
     steps += [transforms.Resize(spec.input_size), transforms.ToTensor()]
 
-    return spec.in_channels, spec.input_size, spec.num_classes, spec.class_labels, transforms.Compose(steps)
+    return spec, transforms.Compose(steps)
 
 
 def _load_inference_model(
@@ -69,9 +69,9 @@ def _load_inference_model(
     if not os.path.exists(weights_path):
         raise HTTPException(status_code=404, detail="Model weights not found")
 
-    in_channels, input_size, num_classes, class_labels, transform = _resolve_dataset(dataset)
+    spec, transform = _resolve_dataset(dataset)
 
-    model = create_model(model_name, num_classes, in_channels, input_size)
+    model = create_model(model_name, spec.num_classes, spec.in_channels, spec.input_size)
     try:
         model.load_state_dict(torch.load(weights_path, map_location=device))
     except RuntimeError:
@@ -79,7 +79,7 @@ def _load_inference_model(
     model.to(device)
     model.eval()
 
-    return model, in_channels, input_size, num_classes, class_labels, transform
+    return model, spec.in_channels, spec.input_size, spec.num_classes, spec.class_labels, transform
 
 
 # Matches logic-backend's multipart max-file-size (application.yaml). That limit only covers
@@ -217,28 +217,27 @@ def health():
 def run_experiment(config: ExperimentConfig):
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
+        train_loader, val_loader, test_loader, spec = load_dataset(
             config.dataset, config.training.batch_size
         )
 
         torch.manual_seed(TRAINING_SEED)
-        model = create_model(config.model, num_classes, in_channels, input_size)
+        model = create_model(config.model, spec.num_classes, spec.in_channels, spec.input_size)
         optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
         train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
             model, train_loader, val_loader, config.training.epochs, optimizer, device=device
         )
-        metrics = evaluate(model, test_loader, num_classes, device=device)
+        metrics = evaluate(model, test_loader, spec.num_classes, device=device)
         param_count = count_parameters(model)
         model_size_bytes = compute_model_size_bytes(model)
-        inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
+        inference_latency_ms = benchmark_inference(model, device, spec.in_channels, spec.input_size)
         training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
         model_id = str(uuid.uuid4())
         torch.save(model.state_dict(), os.path.join(SAVED_MODELS_DIR, f"{model_id}.pth"))
 
-        _, _, _, class_labels, _ = _resolve_dataset(config.dataset)
-        sample_gradcams = _generate_sample_gradcams(model, config.model, test_loader, class_labels, device)
+        sample_gradcams = _generate_sample_gradcams(model, config.model, test_loader, spec.class_labels, device)
     except HTTPException:
         raise
     except Exception:
@@ -269,7 +268,7 @@ def run_experiment(config: ExperimentConfig):
 def compare_models(config: CompareConfig):
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
+        train_loader, val_loader, test_loader, spec = load_dataset(
             config.dataset, config.training.batch_size
         )
 
@@ -278,16 +277,16 @@ def compare_models(config: CompareConfig):
             # Reseed per model rather than once before the loop, so each architecture gets the
             # same deterministic init/shuffle sequence regardless of its position in MODEL_NAMES.
             torch.manual_seed(TRAINING_SEED)
-            model = create_model(model_name, num_classes, in_channels, input_size)
+            model = create_model(model_name, spec.num_classes, spec.in_channels, spec.input_size)
             optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
 
             train_loss, val_loss_per_epoch, train_accuracy, val_accuracy_per_epoch, training_time = train(
                 model, train_loader, val_loader, config.training.epochs, optimizer, device=device
             )
-            metrics = evaluate(model, test_loader, num_classes, device=device)
+            metrics = evaluate(model, test_loader, spec.num_classes, device=device)
             param_count = count_parameters(model)
             model_size_bytes = compute_model_size_bytes(model)
-            inference_latency_ms = benchmark_inference(model, device, in_channels, input_size)
+            inference_latency_ms = benchmark_inference(model, device, spec.in_channels, spec.input_size)
             training_throughput = compute_training_throughput(train_loader, config.training.epochs, training_time)
 
             results.append({

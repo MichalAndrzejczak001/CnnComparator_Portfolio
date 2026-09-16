@@ -52,7 +52,7 @@ def _split_train_val(train_dataset: Dataset, batch_size: int) -> Tuple[DataLoade
 
 def load_dataset(
         name: str, batch_size: int = 32
-) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, Tuple[int, int]]:
+) -> Tuple[DataLoader, DataLoader, DataLoader, DatasetSpec]:
     if name not in DATASET_SPECS:
         raise ValueError(f"Unknown dataset: {name}")
 
@@ -72,7 +72,4 @@ def load_dataset(
     train = dataset_cls(root="./data", train=True, download=True, transform=transform)
     test = dataset_cls(root="./data", train=False, download=True, transform=transform)
     train_loader, val_loader = _split_train_val(train, batch_size)
-    return (
-        train_loader, val_loader, DataLoader(test, batch_size=batch_size),
-        spec.num_classes, spec.in_channels, spec.input_size,
-    )
+    return train_loader, val_loader, DataLoader(test, batch_size=batch_size), spec

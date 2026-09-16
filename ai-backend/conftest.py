@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from backend.datasets.loader import DATASET_SPECS
+
 
 @pytest.fixture
 def mock_deps():
@@ -22,7 +24,7 @@ def mock_deps():
         patch("backend.main._generate_sample_gradcams", return_value=[]),
         patch("backend.main.uuid.uuid4", return_value=uuid.UUID(fixed_uuid)),
     ):
-        mock_load.return_value = (mock_train_loader, mock_val_loader, mock_test_loader, 10, 1, (32, 32))
+        mock_load.return_value = (mock_train_loader, mock_val_loader, mock_test_loader, DATASET_SPECS["mnist"])
         mock_train.return_value = ([0.5, 0.4, 0.3], [0.6, 0.5, 0.4], [0.85, 0.9, 0.93], [0.82, 0.87, 0.91], 8.0)
         mock_eval.return_value = {
             "loss": 0.3,

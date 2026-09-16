@@ -9,13 +9,11 @@ from backend.datasets.loader import load_dataset
     ("cifar10", 3),
 ])
 def test_load_dataset_returns_three_disjoint_loaders(dataset, expected_channels):
-    train_loader, val_loader, test_loader, num_classes, in_channels, input_size = load_dataset(
-        dataset, batch_size=64
-    )
+    train_loader, val_loader, test_loader, spec = load_dataset(dataset, batch_size=64)
 
-    assert num_classes == 10
-    assert in_channels == expected_channels
-    assert input_size == (32, 32)
+    assert spec.num_classes == 10
+    assert spec.in_channels == expected_channels
+    assert spec.input_size == (32, 32)
 
     train_indices = set(train_loader.dataset.indices)
     val_indices = set(val_loader.dataset.indices)
@@ -31,7 +29,7 @@ def test_load_dataset_returns_three_disjoint_loaders(dataset, expected_channels)
 
 
 def test_train_val_split_is_deterministic_across_calls():
-    _, val_loader_a, _, _, _, _ = load_dataset("mnist", batch_size=64)
-    _, val_loader_b, _, _, _, _ = load_dataset("mnist", batch_size=64)
+    _, val_loader_a, _, _ = load_dataset("mnist", batch_size=64)
+    _, val_loader_b, _, _ = load_dataset("mnist", batch_size=64)
 
     assert val_loader_a.dataset.indices == val_loader_b.dataset.indices
